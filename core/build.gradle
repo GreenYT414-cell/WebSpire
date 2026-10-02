@@ -12,3 +12,9 @@ dependencies {
 jar {
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
+
+allprojects {
+  tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+  }
+}
