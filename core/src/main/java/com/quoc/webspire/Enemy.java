@@ -1,46 +1,82 @@
 package com.quoc.webspire;
 
 import com.quoc.webspire.enums.EnemyIntent;
+import java.util.Random;
 
-public class Enemy extends Character {
+public class Enemy {
+    private String name;
+    private int hp;
+    private int maxHp;
+    private int block;
+
     private EnemyIntent currentIntent;
-    private int intentValue; // Lưu lượng sát thương hoặc lượng giáp chuẩn bị nhận
+    private int intentValue;
+    private Random random = new Random();
 
-    public Enemy(String name, int maxHp, int maxEnergy) {
-        super(name, maxHp, maxEnergy);
+    private int strength = 0;
+    private int vulnerableTurns = 0;
+    private int weakTurns = 0;
+
+    public Enemy(String name, int hp, int block) {
+        this.name = name;
+        this.hp = hp;
+        this.maxHp = hp;
+        this.block = block;
     }
 
-    // Hàm tạo ý định (Gọi vào đầu mỗi lượt mới)
     public void rollIntent() {
-        double random = Math.random();
-        if (random > 0.4) {
-            // 60% tỷ lệ Tấn công
-            this.currentIntent = EnemyIntent.ATTACK;
-            this.intentValue = 8; // Gây 8 sát thương
-            System.out.println("-> [Ý ĐỊNH]: " + getName() + " lườm bạn, chuẩn bị TẤN CÔNG (" + intentValue + " dmg).");
+        int roll = random.nextInt(100);
+        if (roll < 60) {
+            currentIntent = EnemyIntent.ATTACK;
+            intentValue = 6;
         } else {
-            // 40% tỷ lệ Phòng thủ
-            this.currentIntent = EnemyIntent.DEFEND;
-            this.intentValue = 5; // Tăng 5 giáp
-            System.out.println("-> [Ý ĐỊNH]: " + getName() + " co cụm lại, chuẩn bị PHÒNG THỦ (" + intentValue + " block).");
+            currentIntent = EnemyIntent.DEFEND;
+            intentValue = 5;
         }
     }
 
-    // Hàm thực thi ý định (Gọi khi đến lượt của Kẻ thù)
+    public void startTurn() {
+        this.block = 0;
+        if (vulnerableTurns > 0) vulnerableTurns--;
+        if (weakTurns > 0) weakTurns--;
+    }
+
     public void executeIntent(Character player) {
-        System.out.println("\n--- Lượt của " + getName() + " bắt đầu ---");
-
         if (currentIntent == EnemyIntent.ATTACK) {
-            System.out.println(getName() + " lao tới chém " + player.getName() + " gây " + intentValue + " sát thương!");
-            player.takeDamage(intentValue);
-        }
-        else if (currentIntent == EnemyIntent.DEFEND) {
-            System.out.println(getName() + " dựng khiên bảo vệ bản thân!");
-            this.addBlock(intentValue);
+            int finalDamage = intentValue + strength;
+            if (weakTurns > 0) finalDamage = (int)(finalDamage * 0.75f);
+            if (player.getVulnerableTurns() > 0) finalDamage = (int)(finalDamage * 1.5f);
+
+            player.takeDamage(finalDamage);
+        } else if (currentIntent == EnemyIntent.DEFEND) {
+            this.block += intentValue;
         }
     }
 
-    // Getters
+    public void takeDamage(int damage) {
+        if (damage <= 0) return;
+        if (block > 0) {
+            if (block >= damage) {
+                block -= damage;
+                return;
+            } else {
+                damage -= block;
+                block = 0;
+            }
+        }
+        hp -= damage;
+        if (hp < 0) hp = 0;
+    }
+
+    public void applyVulnerable(int turns) { vulnerableTurns += turns; }
+    public void applyWeak(int turns) { weakTurns += turns; }
+
+    public String getName() { return name; }
+    public int getHp() { return hp; }
+    public int getMaxHp() { return maxHp; }
+    public int getBlock() { return block; }
     public EnemyIntent getCurrentIntent() { return currentIntent; }
     public int getIntentValue() { return intentValue; }
+    public int getVulnerableTurns() { return vulnerableTurns; }
+    public int getWeakTurns() { return weakTurns; }
 }

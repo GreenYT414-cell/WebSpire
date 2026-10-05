@@ -74,7 +74,6 @@ public class Main extends ApplicationAdapter {
         playerHpBar = new ProgressBar(0, player.getMaxHp(), 1, false, createHpBarStyle(Color.GREEN));
         monsterHpBar = new ProgressBar(0, monster.getMaxHp(), 1, false, createHpBarStyle(Color.RED));
 
-        // Bố cục phần trên: Thông số nhân vật
         Table playerBox = new Table();
         playerBox.add(playerLabel).row();
         playerBox.add(playerHpBar).width(200).height(20).padTop(8);
@@ -88,7 +87,6 @@ public class Main extends ApplicationAdapter {
         rootTable.add(monsterBox).expandX().padTop(20);
         rootTable.row();
 
-        // Nút Kết thúc lượt
         TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
         btnStyle.font = font;
         btnStyle.fontColor = Color.GOLD;
@@ -104,7 +102,6 @@ public class Main extends ApplicationAdapter {
         });
         rootTable.add(endTurnButton).colspan(2).padTop(20).row();
 
-        // Bố cục phần dưới: Chồng bài rút - Bài trên tay - Chồng bài bỏ
         Table bottomTable = new Table();
         handTable = new Table();
 
@@ -125,8 +122,9 @@ public class Main extends ApplicationAdapter {
         monster = new Enemy("Goblin", 40, 0);
 
         List<Card> masterDeck = new ArrayList<>();
-        for (int i = 0; i < 5; i++) masterDeck.add(new StrikeCard());
+        for (int i = 0; i < 4; i++) masterDeck.add(new StrikeCard());
         for (int i = 0; i < 4; i++) masterDeck.add(new DefendCard());
+        masterDeck.add(new BashCard());
 
         deckManager = new DeckManager();
         deckManager.initCombat(masterDeck);
@@ -201,8 +199,15 @@ public class Main extends ApplicationAdapter {
     }
 
     private void updateUI() {
-        playerLabel.setText(player.getName() + "\nHP: " + player.getHp() + "/" + player.getMaxHp() + "\nGiáp: " + player.getBlock() + "\nNăng lượng: " + player.getEnergy());
-        monsterLabel.setText(monster.getName() + "\nHP: " + monster.getHp() + "/" + monster.getMaxHp() + "\nGiáp: " + monster.getBlock());
+        String playerStatus = player.getName() + "\nHP: " + player.getHp() + "/" + player.getMaxHp()
+            + "\nGiáp: " + player.getBlock() + "\nNL: " + player.getEnergy();
+        if (player.getVulnerableTurns() > 0) playerStatus += "\n[Dễ tổn thương: " + player.getVulnerableTurns() + "L]";
+        playerLabel.setText(playerStatus);
+
+        String monsterStatus = monster.getName() + "\nHP: " + monster.getHp() + "/" + monster.getMaxHp()
+            + "\nGiáp: " + monster.getBlock();
+        if (monster.getVulnerableTurns() > 0) monsterStatus += "\n[Dễ tổn thương: " + monster.getVulnerableTurns() + "L]";
+        monsterLabel.setText(monsterStatus);
 
         playerHpBar.setValue(player.getHp());
         monsterHpBar.setValue(monster.getHp());

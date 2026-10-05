@@ -21,7 +21,6 @@ public class CardActor extends Table {
     public CardActor(Card card, BitmapFont font, Runnable onClick) {
         this.card = card;
 
-        // Tạo 2 màu nền: Màu thường và Màu highlight khi Hover
         normalBg = createDrawable(0.25f, 0.25f, 0.4f, 0.95f);
         hoverBg = createDrawable(0.35f, 0.35f, 0.6f, 1f);
 
@@ -40,7 +39,6 @@ public class CardActor extends Table {
         descLabel.setWrap(true);
         this.add(descLabel).width(120).padTop(12).row();
 
-        // Bắt sự kiện Click
         this.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -48,11 +46,10 @@ public class CardActor extends Table {
             }
         });
 
-        // Bắt sự kiện Hover chuột
         this.addListener(new InputListener() {
             @Override
             public void enter(InputEvent event, float x, float y, int pointer, Actor fromActor) {
-                if (pointer == -1) { // -1 nghĩa là di chuyển chuột (không phải chạm cảm ứng)
+                if (pointer == -1) {
                     setBackground(hoverBg);
                 }
             }

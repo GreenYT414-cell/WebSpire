@@ -1,8 +1,5 @@
 package com.quoc.webspire;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class Character {
     private String name;
     private int hp;
@@ -11,56 +8,57 @@ public class Character {
     private int energy;
     private int maxEnergy;
 
-    // Lưu trữ các buff/debuff
-    private Map<String, Integer> statuses;
+    private int strength = 0;
+    private int vulnerableTurns = 0;
+    private int weakTurns = 0;
 
-    public Character(String name, int maxHp, int maxEnergy) {
+    public Character(String name, int hp, int maxEnergy) {
         this.name = name;
-        this.maxHp = maxHp;
-        this.hp = maxHp;
+        this.hp = hp;
+        this.maxHp = hp;
+        this.block = 0;
         this.maxEnergy = maxEnergy;
         this.energy = maxEnergy;
-        this.block = 0;
-        this.statuses = new HashMap<>();
     }
 
     public void startTurn() {
-        this.block = 0; // Xóa giáp cũ khi bắt đầu hiệp
-        this.energy = this.maxEnergy; // Hồi đầy năng lượng
-        System.out.println("--- Lượt của " + name + " bắt đầu ---");
+        this.energy = maxEnergy;
+        this.block = 0;
+
+        if (vulnerableTurns > 0) vulnerableTurns--;
+        if (weakTurns > 0) weakTurns--;
     }
 
     public void takeDamage(int damage) {
-        if (block >= damage) {
-            block -= damage;
-            System.out.println(name + " chặn được toàn bộ sát thương. Giáp còn: " + block);
-        } else {
-            int remainingDamage = damage - block;
-            block = 0;
-            hp -= remainingDamage;
-            if (hp < 0) hp = 0;
-            System.out.println(name + " mất " + remainingDamage + " HP. Máu còn: " + hp);
+        if (damage <= 0) return;
+        if (block > 0) {
+            if (block >= damage) {
+                block -= damage;
+                return;
+            } else {
+                damage -= block;
+                block = 0;
+            }
         }
+        hp -= damage;
+        if (hp < 0) hp = 0;
     }
 
     public void addBlock(int amount) {
         this.block += amount;
-        System.out.println(name + " nhận " + amount + " Giáp. Tổng giáp: " + block);
     }
 
-    public boolean useEnergy(int cost) {
-        if (this.energy >= cost) {
-            this.energy -= cost;
-            return true;
-        }
-        System.out.println(name + " không đủ Năng lượng!");
-        return false;
-    }
+    public void applyVulnerable(int turns) { vulnerableTurns += turns; }
+    public void applyWeak(int turns) { weakTurns += turns; }
+    public void addStrength(int amount) { strength += amount; }
 
-    // Getters
     public String getName() { return name; }
     public int getHp() { return hp; }
     public int getMaxHp() { return maxHp; }
     public int getBlock() { return block; }
     public int getEnergy() { return energy; }
+    public void useEnergy(int amount) { energy -= amount; }
+    public int getStrength() { return strength; }
+    public int getVulnerableTurns() { return vulnerableTurns; }
+    public int getWeakTurns() { return weakTurns; }
 }
