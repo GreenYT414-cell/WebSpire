@@ -1,5 +1,8 @@
 package com.quoc.webspire;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Character {
     private String name;
     private int hp;
@@ -8,6 +11,10 @@ public class Character {
     private int energy;
     private int maxEnergy;
 
+    private int gold;
+    private List<Relic> relics = new ArrayList<>();
+
+    // Trạng thái (Status Effects)
     private int strength = 0;
     private int vulnerableTurns = 0;
     private int weakTurns = 0;
@@ -19,6 +26,7 @@ public class Character {
         this.block = 0;
         this.maxEnergy = maxEnergy;
         this.energy = maxEnergy;
+        this.gold = 99;
     }
 
     public void startTurn() {
@@ -44,13 +52,37 @@ public class Character {
         if (hp < 0) hp = 0;
     }
 
+    public void heal(int amount) {
+        if (amount <= 0) return;
+        this.hp += amount;
+        if (this.hp > maxHp) this.hp = maxHp;
+    }
+
     public void addBlock(int amount) {
         this.block += amount;
+    }
+
+    public void addRelic(Relic relic) {
+        this.relics.add(relic);
+    }
+
+    public void triggerCombatStartRelics(Enemy monster) {
+        this.strength = 0; // Reset strength cơ bản trước trận
+        for (Relic relic : relics) {
+            relic.onCombatStart(this, monster);
+        }
+    }
+
+    public void triggerVictoryRelics() {
+        for (Relic relic : relics) {
+            relic.onVictory(this);
+        }
     }
 
     public void applyVulnerable(int turns) { vulnerableTurns += turns; }
     public void applyWeak(int turns) { weakTurns += turns; }
     public void addStrength(int amount) { strength += amount; }
+    public void addGold(int amount) { this.gold += amount; }
 
     public String getName() { return name; }
     public int getHp() { return hp; }
@@ -58,7 +90,9 @@ public class Character {
     public int getBlock() { return block; }
     public int getEnergy() { return energy; }
     public void useEnergy(int amount) { energy -= amount; }
+    public int getGold() { return gold; }
     public int getStrength() { return strength; }
     public int getVulnerableTurns() { return vulnerableTurns; }
     public int getWeakTurns() { return weakTurns; }
+    public List<Relic> getRelics() { return relics; }
 }

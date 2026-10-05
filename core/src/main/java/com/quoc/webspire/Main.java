@@ -22,6 +22,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class Main extends ApplicationAdapter {
     private Stage stage;
@@ -31,10 +32,16 @@ public class Main extends ApplicationAdapter {
     private Character player;
     private Enemy monster;
     private DeckManager deckManager;
+    private List<Card> masterDeck;
+
+    private int floor = 1;
 
     private Label playerLabel;
     private Label monsterLabel;
     private Label intentLabel;
+    private Label floorLabel;
+    private Label relicListLabel;
+
     private ProgressBar playerHpBar;
     private ProgressBar monsterHpBar;
 
@@ -44,8 +51,16 @@ public class Main extends ApplicationAdapter {
     private Table handTable;
     private TextButton endTurnButton;
 
+    // Overlay Game Over & Phần thưởng
     private Table gameOverOverlay;
     private Label gameOverTitleLabel;
+
+    private Table rewardOverlay;
+    private Table rewardCardsTable;
+    private Label rewardGoldLabel;
+    private Label rewardRelicLabel;
+
+    private Random random = new Random();
 
     @Override
     public void create() {
@@ -63,7 +78,11 @@ public class Main extends ApplicationAdapter {
         Label.LabelStyle labelStyle = new Label.LabelStyle(font, Color.WHITE);
         Label.LabelStyle intentStyle = new Label.LabelStyle(font, Color.SCARLET);
         Label.LabelStyle pileStyle = new Label.LabelStyle(font, Color.LIGHT_GRAY);
+        Label.LabelStyle floorStyle = new Label.LabelStyle(font, Color.GOLD);
+        Label.LabelStyle relicStyle = new Label.LabelStyle(font, Color.ORANGE);
 
+        floorLabel = new Label("Tầng: " + floor, floorStyle);
+        relicListLabel = new Label("", relicStyle);
         playerLabel = new Label("", labelStyle);
         monsterLabel = new Label("", labelStyle);
         intentLabel = new Label("", intentStyle);
@@ -74,6 +93,11 @@ public class Main extends ApplicationAdapter {
         playerHpBar = new ProgressBar(0, player.getMaxHp(), 1, false, createHpBarStyle(Color.GREEN));
         monsterHpBar = new ProgressBar(0, monster.getMaxHp(), 1, false, createHpBarStyle(Color.RED));
 
+        Table topBar = new Table();
+        topBar.add(floorLabel).left().padLeft(20);
+        topBar.add(relicListLabel).expandX().right().padRight(20);
+        rootTable.add(topBar).colspan(2).fillX().padTop(10).row();
+
         Table playerBox = new Table();
         playerBox.add(playerLabel).row();
         playerBox.add(playerHpBar).width(200).height(20).padTop(8);
@@ -83,8 +107,8 @@ public class Main extends ApplicationAdapter {
         monsterBox.add(monsterLabel).row();
         monsterBox.add(monsterHpBar).width(200).height(20).padTop(8);
 
-        rootTable.add(playerBox).expandX().padTop(20);
-        rootTable.add(monsterBox).expandX().padTop(20);
+        rootTable.add(playerBox).expandX().padTop(10);
+        rootTable.add(monsterBox).expandX().padTop(10);
         rootTable.row();
 
         TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
@@ -100,7 +124,7 @@ public class Main extends ApplicationAdapter {
                 endPlayerTurn();
             }
         });
-        rootTable.add(endTurnButton).colspan(2).padTop(20).row();
+        rootTable.add(endTurnButton).colspan(2).padTop(15).row();
 
         Table bottomTable = new Table();
         handTable = new Table();
@@ -114,20 +138,37 @@ public class Main extends ApplicationAdapter {
         stage.addActor(rootTable);
 
         initGameOverOverlay();
-        startPlayerTurn();
+        initRewardOverlay();
+
+        startNewCombat();
     }
 
     private void initGameData() {
+        floor = 1;
         player = new Character("Hiệp Sĩ", 50, 3);
-        monster = new Enemy("Goblin", 40, 0);
 
-        List<Card> masterDeck = new ArrayList<>();
+        // Thêm Cổ vật khởi đầu
+        player.addRelic(new BurningBloodRelic());
+
+        masterDeck = new ArrayList<>();
         for (int i = 0; i < 4; i++) masterDeck.add(new StrikeCard());
         for (int i = 0; i < 4; i++) masterDeck.add(new DefendCard());
         masterDeck.add(new BashCard());
 
+        spawnNextMonster();
+    }
+
+    private void spawnNextMonster() {
+        int monsterHp = 35 + (floor * 5);
+        monster = new Enemy("Goblin Tầng " + floor, monsterHp, 0);
+
         deckManager = new DeckManager();
         deckManager.initCombat(masterDeck);
+    }
+
+    private void startNewCombat() {
+        player.triggerCombatStartRelics(monster);
+        startPlayerTurn();
     }
 
     private void startPlayerTurn() {
@@ -157,13 +198,69 @@ public class Main extends ApplicationAdapter {
 
     private boolean checkGameOver() {
         if (monster.getHp() <= 0) {
-            showGameOverScreen("VICTORY! CẬU ĐÃ THẮNG!", Color.GOLD);
+            player.triggerVictoryRelics();
+            showRewardScreen();
             return true;
         } else if (player.getHp() <= 0) {
             showGameOverScreen("GAME OVER! CẬU ĐÃ THẤT BẠI!", Color.RED);
             return true;
         }
         return false;
+    }
+
+    private void showRewardScreen() {
+        int rewardGold = 15 + random.nextInt(15);
+        player.addGold(rewardGold);
+        rewardGoldLabel.setText("Nhận được: " + rewardGold + " Vàng!");
+
+        // Thưởng Cổ vật đặc biệt ở Tầng 2
+        if (floor == 2 && player.getRelics().size() < 2) {
+            Relic newRelic = new VajraRelic();
+            player.addRelic(newRelic);
+            rewardRelicLabel.setText("CỔ VẬT MỚI: " + newRelic.getName() + " (" + newRelic.getDescription() + ")");
+            rewardRelicLabel.setVisible(true);
+        } else {
+            rewardRelicLabel.setVisible(false);
+        }
+
+        rewardCardsTable.clear();
+        List<Card> rewardOptions = generateRewardCards(3);
+
+        for (Card card : rewardOptions) {
+            CardActor cardActor = new CardActor(card, font, () -> {
+                masterDeck.add(card);
+                nextFloor();
+            });
+            rewardCardsTable.add(cardActor).size(140, 190).pad(10);
+        }
+
+        rewardOverlay.setVisible(true);
+        endTurnButton.setVisible(false);
+    }
+
+    private List<Card> generateRewardCards(int count) {
+        List<Card> options = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            int roll = random.nextInt(4);
+            switch (roll) {
+                case 0: options.add(new StrikeCard()); break;
+                case 1: options.add(new DefendCard()); break;
+                case 2: options.add(new BashCard()); break;
+                default: options.add(new IronWaveCard()); break;
+            }
+        }
+        return options;
+    }
+
+    private void nextFloor() {
+        rewardOverlay.setVisible(false);
+        endTurnButton.setVisible(true);
+
+        floor++;
+        spawnNextMonster();
+        monsterHpBar.setRange(0, monster.getMaxHp());
+
+        startNewCombat();
     }
 
     private void showGameOverScreen(String message, Color titleColor) {
@@ -181,7 +278,7 @@ public class Main extends ApplicationAdapter {
         playerHpBar.setRange(0, player.getMaxHp());
         monsterHpBar.setRange(0, monster.getMaxHp());
 
-        startPlayerTurn();
+        startNewCombat();
     }
 
     private void refreshHandUI() {
@@ -199,8 +296,19 @@ public class Main extends ApplicationAdapter {
     }
 
     private void updateUI() {
+        floorLabel.setText("Tầng: " + floor);
+
+        // Hiển thị danh sách Cổ vật
+        StringBuilder relicsText = new StringBuilder("Cổ vật: ");
+        for (Relic relic : player.getRelics()) {
+            relicsText.append("[").append(relic.getName()).append("] ");
+        }
+        relicListLabel.setText(relicsText.toString());
+
         String playerStatus = player.getName() + "\nHP: " + player.getHp() + "/" + player.getMaxHp()
-            + "\nGiáp: " + player.getBlock() + "\nNL: " + player.getEnergy();
+            + "\nGiáp: " + player.getBlock() + " | NL: " + player.getEnergy()
+            + "\nVàng: " + player.getGold();
+        if (player.getStrength() > 0) playerStatus += "\n[Sức mạnh: +" + player.getStrength() + "]";
         if (player.getVulnerableTurns() > 0) playerStatus += "\n[Dễ tổn thương: " + player.getVulnerableTurns() + "L]";
         playerLabel.setText(playerStatus);
 
@@ -220,6 +328,44 @@ public class Main extends ApplicationAdapter {
         }
     }
 
+    private void initRewardOverlay() {
+        rewardOverlay = new Table();
+        rewardOverlay.setFillParent(true);
+        rewardOverlay.setBackground(createDrawable(0f, 0f, 0f, 0.88f));
+
+        Label.LabelStyle titleStyle = new Label.LabelStyle(font, Color.GOLD);
+        Label.LabelStyle goldStyle = new Label.LabelStyle(font, Color.YELLOW);
+        Label.LabelStyle relicRewardStyle = new Label.LabelStyle(font, Color.CYAN);
+
+        Label titleLabel = new Label("CHIẾN THẮNG! CHỌN 1 PHẦN THƯỞNG", titleStyle);
+        rewardGoldLabel = new Label("", goldStyle);
+        rewardRelicLabel = new Label("", relicRewardStyle);
+        rewardCardsTable = new Table();
+
+        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
+        btnStyle.font = font;
+        btnStyle.fontColor = Color.LIGHT_GRAY;
+        btnStyle.up = createDrawable(0.3f, 0.3f, 0.3f, 1f);
+
+        TextButton skipBtn = new TextButton("Bỏ qua phần thưởng", btnStyle);
+        skipBtn.pad(10, 20, 10, 20);
+        skipBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                nextFloor();
+            }
+        });
+
+        rewardOverlay.add(titleLabel).padBottom(10).row();
+        rewardOverlay.add(rewardGoldLabel).padBottom(5).row();
+        rewardOverlay.add(rewardRelicLabel).padBottom(15).row();
+        rewardOverlay.add(rewardCardsTable).padBottom(20).row();
+        rewardOverlay.add(skipBtn);
+
+        rewardOverlay.setVisible(false);
+        stage.addActor(rewardOverlay);
+    }
+
     private void initGameOverOverlay() {
         gameOverOverlay = new Table();
         gameOverOverlay.setFillParent(true);
@@ -233,7 +379,7 @@ public class Main extends ApplicationAdapter {
         btnStyle.fontColor = Color.WHITE;
         btnStyle.up = createDrawable(0.2f, 0.6f, 0.2f, 1f);
 
-        TextButton restartBtn = new TextButton("Chơi lại", btnStyle);
+        TextButton restartBtn = new TextButton("Chơi lại từ đầu", btnStyle);
         restartBtn.pad(10, 30, 10, 30);
         restartBtn.addListener(new ClickListener() {
             @Override
@@ -269,7 +415,7 @@ public class Main extends ApplicationAdapter {
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("font.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
         parameter.size = 20;
-        parameter.characters = "aAàÀảẢãÃáÁạẠăĂằẰẳẲẵẴắẮặẶâÂầẦẩẨẫẪấẤậẬbBcCdDđĐeEèÈẻẺẽẼéÉẹẸêÊềỀểỂễỄếẾệỆfFgGhHiIìÌỉỈĩĨíÍịỊjJkKlLmMnNoOòÒỏỎõÕóÓọỌôÔồỒổỔỗỖốỐộỘơƠờỜởỞỡỠớỚợỢpPqQrRsStTuUùÙủỦũŨúÚụỤưƯừỪửỬữỮứỨựỰvVwWxXyYỳỲỷỶỹỸýÝỵỴzZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/? ";
+        parameter.characters = "aAàÀảẢãÃáÁạẠăĂằẰẳẲẵẴắẮặẶâÂầẦẩẨẫẪấẤậẬbBcCdDđĐeEèÈẻẺẽẽéÉẹẸêÊềỀểỂễỄếẾệỆfFgGhHiIìÌỉỈĩĨíÍịỊjJkKlLmMnNoOòÒỏỎõÕóÓọỌôÔồỒổỔỗỖốỐộỘơƠờỜởỞỡỠớỚợỢpPqQrRsStTuUùÙủỦũŨúÚụỤưƯừỪửỬữỮứỨựỰvVwWxXyYỳỲỷỶỹỸýÝỵỴzZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/? ";
 
         font = generator.generateFont(parameter);
         generator.dispose();
