@@ -54,8 +54,8 @@ public class MainMenuScreen implements Screen {
         startBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // Chuyển sang màn hình chơi
-                game.setScreen(new GameScreen(game));
+                // Chuyển sang màn hình Bản đồ thay vì vào thẳng trận đấu
+                game.setScreen(new MapScreen(game));
             }
         });
 

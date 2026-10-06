@@ -23,6 +23,7 @@ import java.util.Random;
 
 public class GameScreen implements Screen {
     private final Main game;
+    private final MapScreen mapScreen;
     private Stage stage;
 
     private Character player;
@@ -30,9 +31,7 @@ public class GameScreen implements Screen {
     private DeckManager deckManager;
     private List<Card> masterDeck;
 
-    private int floor = 1;
-
-    private Label playerLabel, monsterLabel, intentLabel, floorLabel, relicListLabel;
+    private Label playerLabel, monsterLabel, intentLabel, relicListLabel;
     private ProgressBar playerHpBar, monsterHpBar;
     private Label drawPileLabel, discardPileLabel;
 
@@ -45,23 +44,11 @@ public class GameScreen implements Screen {
     private Table rewardOverlay, rewardCardsTable;
     private Label rewardGoldLabel, rewardRelicLabel;
 
-    private Table restSiteOverlay, forgeCardsTable;
-    private Label restSiteStatusLabel;
-
-    private Table shopOverlay, shopCardsTable, shopRelicTable, removeCardTable;
-    private Label shopTitleLabel, shopGoldLabel;
-    private TextButton removeCardBtn;
-
-    private Table bossRewardOverlay, bossRelicsTable;
-
-    private List<Card> currentShopCards = new ArrayList<>();
-    private boolean boughtRelicInShop = false;
-    private boolean usedRemoveService = false;
-
     private Random random = new Random();
 
-    public GameScreen(Main game) {
+    public GameScreen(Main game, MapScreen mapScreen) {
         this.game = game;
+        this.mapScreen = mapScreen;
         this.stage = new Stage(new FitViewport(1280, 720), game.batch);
     }
 
@@ -78,10 +65,8 @@ public class GameScreen implements Screen {
         Label.LabelStyle labelStyle = new Label.LabelStyle(game.font, Color.WHITE);
         Label.LabelStyle intentStyle = new Label.LabelStyle(game.font, Color.SCARLET);
         Label.LabelStyle pileStyle = new Label.LabelStyle(game.font, Color.LIGHT_GRAY);
-        Label.LabelStyle floorStyle = new Label.LabelStyle(game.font, Color.GOLD);
         Label.LabelStyle relicStyle = new Label.LabelStyle(game.font, Color.ORANGE);
 
-        floorLabel = new Label("Tầng: " + floor, floorStyle);
         relicListLabel = new Label("", relicStyle);
         playerLabel = new Label("", labelStyle);
         monsterLabel = new Label("", labelStyle);
@@ -94,7 +79,6 @@ public class GameScreen implements Screen {
         monsterHpBar = new ProgressBar(0, monster.getMaxHp(), 1, false, createHpBarStyle(Color.RED));
 
         Table topBar = new Table();
-        topBar.add(floorLabel).left().padLeft(20);
         topBar.add(relicListLabel).expandX().right().padRight(20);
         rootTable.add(topBar).colspan(2).fillX().padTop(10).row();
 
@@ -139,15 +123,11 @@ public class GameScreen implements Screen {
 
         initGameOverOverlay();
         initRewardOverlay();
-        initRestSiteOverlay();
-        initShopOverlay();
-        initBossRewardOverlay();
 
         startNewCombat();
     }
 
     private void initGameData() {
-        floor = 1;
         player = new Character("Hiệp Sĩ", 50, 3);
         player.addRelic(new BurningBloodRelic());
 
@@ -156,18 +136,8 @@ public class GameScreen implements Screen {
         for (int i = 0; i < 4; i++) masterDeck.add(new DefendCard());
         masterDeck.add(new BashCard());
 
-        spawnNextMonster();
-    }
-
-    private void spawnNextMonster() {
-        if (floor == 10) {
-            monster = new BossEnemy("TRÙM CHƯƠNG 1: Slime Khổng Lồ", 100);
-        } else if (floor > 10) {
-            monster = new DarkKnightEnemy("Hiệp Sĩ Bóng Đêm Tầng " + floor, 65 + (floor * 3));
-        } else {
-            int monsterHp = 35 + (floor * 5);
-            monster = new Enemy("Goblin Tầng " + floor, monsterHp, 0);
-        }
+        int monsterHp = 35 + random.nextInt(15);
+        monster = new Enemy("Goblin Quái Vật", monsterHp, 0);
 
         deckManager = new DeckManager();
         deckManager.initCombat(masterDeck);
@@ -218,23 +188,10 @@ public class GameScreen implements Screen {
     }
 
     private void showRewardScreen() {
-        if (floor == 10) {
-            showBossRewardScreen();
-            return;
-        }
-
         int rewardGold = 20 + random.nextInt(15);
         player.addGold(rewardGold);
         rewardGoldLabel.setText("Nhận được: " + rewardGold + " Vàng!");
-
-        if (floor == 2 && player.getRelics().size() < 2) {
-            Relic newRelic = new VajraRelic();
-            player.addRelic(newRelic);
-            rewardRelicLabel.setText("CỔ VẬT MỚI: " + newRelic.getName() + " (" + newRelic.getDescription() + ")");
-            rewardRelicLabel.setVisible(true);
-        } else {
-            rewardRelicLabel.setVisible(false);
-        }
+        rewardRelicLabel.setVisible(false);
 
         rewardCardsTable.clear();
         List<Card> rewardOptions = generateRewardCards(3);
@@ -242,7 +199,7 @@ public class GameScreen implements Screen {
         for (Card card : rewardOptions) {
             CardActor cardActor = new CardActor(card, game.font, () -> {
                 masterDeck.add(card);
-                nextFloor();
+                finishCombatAndReturnToMap();
             });
             rewardCardsTable.add(cardActor).size(140, 190).pad(10);
         }
@@ -251,311 +208,27 @@ public class GameScreen implements Screen {
         endTurnButton.setVisible(false);
     }
 
-    private void showBossRewardScreen() {
-        bossRelicsTable.clear();
-
-        List<Relic> bossRelics = new ArrayList<>();
-        bossRelics.add(new LanternRelic());
-        bossRelics.add(new EnergyRingRelic());
-
-        for (Relic relic : bossRelics) {
-            TextButton.TextButtonStyle relicBtnStyle = new TextButton.TextButtonStyle();
-            relicBtnStyle.font = game.font;
-            relicBtnStyle.fontColor = Color.GOLD;
-            relicBtnStyle.up = createDrawable(0.2f, 0.1f, 0.3f, 1f);
-
-            TextButton relicBtn = new TextButton(relic.getName() + "\n" + relic.getDescription(), relicBtnStyle);
-            relicBtn.pad(15, 20, 15, 20);
-            relicBtn.addListener(new ClickListener() {
-                @Override
-                public void clicked(InputEvent event, float x, float y) {
-                    player.addRelic(relic);
-                    bossRewardOverlay.setVisible(false);
-                    startAct2();
-                }
-            });
-            bossRelicsTable.add(relicBtn).pad(15).row();
-        }
-
-        bossRewardOverlay.setVisible(true);
-        endTurnButton.setVisible(false);
-    }
-
-    private void startAct2() {
-        floor = 11;
+    private void finishCombatAndReturnToMap() {
+        rewardOverlay.setVisible(false);
         endTurnButton.setVisible(true);
-        spawnNextMonster();
-        monsterHpBar.setRange(0, monster.getMaxHp());
-        startNewCombat();
-    }
 
-    private void initBossRewardOverlay() {
-        bossRewardOverlay = new Table();
-        bossRewardOverlay.setFillParent(true);
-        bossRewardOverlay.setBackground(createDrawable(0.05f, 0f, 0.1f, 0.95f));
-
-        Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.GOLD);
-        Label titleLabel = new Label("HẠ GỤC TRÙM! CHỌN 1 CỔ VẬT TRÙM ĐỂ TIẾN VÀO CHƯƠNG 2", titleStyle);
-
-        bossRelicsTable = new Table();
-
-        bossRewardOverlay.add(titleLabel).padBottom(30).row();
-        bossRewardOverlay.add(bossRelicsTable).row();
-
-        bossRewardOverlay.setVisible(false);
-        stage.addActor(bossRewardOverlay);
+        // Quay về Màn hình Bản đồ để người chơi chọn bước đi kế tiếp
+        game.setScreen(mapScreen);
     }
 
     private List<Card> generateRewardCards(int count) {
         List<Card> options = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            int roll = random.nextInt(6);
+            int roll = random.nextInt(5);
             switch (roll) {
                 case 0: options.add(new StrikeCard()); break;
                 case 1: options.add(new DefendCard()); break;
                 case 2: options.add(new BashCard()); break;
                 case 3: options.add(new IronWaveCard()); break;
-                case 4: options.add(new InflameCard()); break;
-                default: options.add(new MetallicizeCard()); break;
+                default: options.add(new DefendCard()); break;
             }
         }
         return options;
-    }
-
-    private void nextFloor() {
-        rewardOverlay.setVisible(false);
-        endTurnButton.setVisible(true);
-
-        floor++;
-
-        if (floor == 10) {
-            spawnNextMonster();
-            monsterHpBar.setRange(0, monster.getMaxHp());
-            startNewCombat();
-        } else if (floor % 4 == 0) {
-            showShop();
-        } else if (floor % 3 == 0) {
-            showRestSite();
-        } else {
-            spawnNextMonster();
-            monsterHpBar.setRange(0, monster.getMaxHp());
-            startNewCombat();
-        }
-    }
-
-    private void showRestSite() {
-        endTurnButton.setVisible(false);
-        restSiteStatusLabel.setText("CẬU ĐÃ ĐẾN TRẠM NGHỈ (TẦNG " + floor + ")");
-        forgeCardsTable.clear();
-        restSiteOverlay.setVisible(true);
-    }
-
-    private void initRestSiteOverlay() {
-        restSiteOverlay = new Table();
-        restSiteOverlay.setFillParent(true);
-        restSiteOverlay.setBackground(createDrawable(0.05f, 0.1f, 0.05f, 0.95f));
-
-        Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.CHARTREUSE);
-        restSiteStatusLabel = new Label("", titleStyle);
-
-        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
-        btnStyle.font = game.font;
-        btnStyle.fontColor = Color.WHITE;
-        btnStyle.up = createDrawable(0.2f, 0.5f, 0.2f, 1f);
-
-        TextButton restBtn = new TextButton("Nghỉ Ngơi (+30% HP)", btnStyle);
-        restBtn.pad(10, 20, 10, 20);
-        restBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                int healAmount = (int)(player.getMaxHp() * 0.3f);
-                player.heal(healAmount);
-                leaveRestSite();
-            }
-        });
-
-        TextButton forgeBtn = new TextButton("Rèn Luyện (Nâng Cấp Bài)", btnStyle);
-        forgeBtn.pad(10, 20, 10, 20);
-        forgeBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                openForgeMenu();
-            }
-        });
-
-        Table btnTable = new Table();
-        btnTable.add(restBtn).pad(15);
-        btnTable.add(forgeBtn).pad(15);
-
-        forgeCardsTable = new Table();
-
-        restSiteOverlay.add(restSiteStatusLabel).padBottom(20).row();
-        restSiteOverlay.add(btnTable).padBottom(20).row();
-        restSiteOverlay.add(forgeCardsTable).row();
-
-        restSiteOverlay.setVisible(false);
-        stage.addActor(restSiteOverlay);
-    }
-
-    private void openForgeMenu() {
-        forgeCardsTable.clear();
-        for (Card card : masterDeck) {
-            if (!card.isUpgraded()) {
-                CardActor cardActor = new CardActor(card, game.font, () -> {
-                    card.upgrade();
-                    leaveRestSite();
-                });
-                forgeCardsTable.add(cardActor).size(140, 190).pad(5);
-            }
-        }
-    }
-
-    private void leaveRestSite() {
-        restSiteOverlay.setVisible(false);
-        endTurnButton.setVisible(true);
-
-        spawnNextMonster();
-        monsterHpBar.setRange(0, monster.getMaxHp());
-        startNewCombat();
-    }
-
-    private void showShop() {
-        endTurnButton.setVisible(false);
-        boughtRelicInShop = false;
-        usedRemoveService = false;
-
-        currentShopCards = generateRewardCards(3);
-
-        shopTitleLabel.setText("CỬA HÀNG THƯƠNG NHÂN (TẦNG " + floor + ")");
-        refreshShopUI();
-        shopOverlay.setVisible(true);
-    }
-
-    private void initShopOverlay() {
-        shopOverlay = new Table();
-        shopOverlay.setFillParent(true);
-        shopOverlay.setBackground(createDrawable(0.15f, 0.1f, 0.05f, 0.95f));
-
-        Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.GOLD);
-        Label.LabelStyle goldStyle = new Label.LabelStyle(game.font, Color.YELLOW);
-
-        shopTitleLabel = new Label("", titleStyle);
-        shopGoldLabel = new Label("", goldStyle);
-
-        shopCardsTable = new Table();
-        shopRelicTable = new Table();
-        removeCardTable = new Table();
-
-        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
-        btnStyle.font = game.font;
-        btnStyle.fontColor = Color.WHITE;
-        btnStyle.up = createDrawable(0.6f, 0.4f, 0.1f, 1f);
-
-        TextButton leaveShopBtn = new TextButton("Rời Cửa Hàng", btnStyle);
-        leaveShopBtn.pad(10, 25, 10, 25);
-        leaveShopBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                leaveShop();
-            }
-        });
-
-        removeCardBtn = new TextButton("Xóa 1 lá bài (75 Vàng)", btnStyle);
-        removeCardBtn.pad(8, 15, 8, 15);
-        removeCardBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                if (!usedRemoveService && player.getGold() >= 75) {
-                    openRemoveCardMenu();
-                }
-            }
-        });
-
-        shopOverlay.add(shopTitleLabel).padBottom(5).row();
-        shopOverlay.add(shopGoldLabel).padBottom(15).row();
-        shopOverlay.add(shopCardsTable).padBottom(15).row();
-        shopOverlay.add(shopRelicTable).padBottom(15).row();
-        shopOverlay.add(removeCardBtn).padBottom(10).row();
-        shopOverlay.add(removeCardTable).padBottom(15).row();
-        shopOverlay.add(leaveShopBtn);
-
-        shopOverlay.setVisible(false);
-        stage.addActor(shopOverlay);
-    }
-
-    private void refreshShopUI() {
-        shopGoldLabel.setText("Vàng hiện tại: " + player.getGold());
-
-        if (usedRemoveService) {
-            removeCardBtn.setText("[Đã dùng dịch vụ xóa bài]");
-        } else {
-            removeCardBtn.setText("Xóa 1 lá bài (75 Vàng)");
-        }
-
-        shopCardsTable.clear();
-        for (Card card : new ArrayList<>(currentShopCards)) {
-            CardActor cardActor = new CardActor(card, game.font, () -> {
-                if (player.getGold() >= 50) {
-                    player.addGold(-50);
-                    masterDeck.add(card);
-                    currentShopCards.remove(card);
-                    refreshShopUI();
-                }
-            });
-            shopCardsTable.add(cardActor).size(140, 190).pad(10);
-        }
-
-        shopRelicTable.clear();
-        if (!boughtRelicInShop) {
-            Relic anchor = new AnchorRelic();
-            TextButton.TextButtonStyle relicBtnStyle = new TextButton.TextButtonStyle();
-            relicBtnStyle.font = game.font;
-            relicBtnStyle.fontColor = Color.CYAN;
-            relicBtnStyle.up = createDrawable(0.1f, 0.3f, 0.4f, 1f);
-
-            TextButton buyRelicBtn = new TextButton("Mua Cổ Vật: " + anchor.getName() + " (150 Vàng)\n" + anchor.getDescription(), relicBtnStyle);
-            buyRelicBtn.pad(10, 20, 10, 20);
-            buyRelicBtn.addListener(new ClickListener() {
-                @Override
-                public void clicked(InputEvent event, float x, float y) {
-                    if (player.getGold() >= 150) {
-                        player.addGold(-150);
-                        player.addRelic(anchor);
-                        boughtRelicInShop = true;
-                        refreshShopUI();
-                    }
-                }
-            });
-            shopRelicTable.add(buyRelicBtn);
-        } else {
-            Label soldOutLabel = new Label("[Cổ vật đã được mua]", new Label.LabelStyle(game.font, Color.GRAY));
-            shopRelicTable.add(soldOutLabel);
-        }
-    }
-
-    private void openRemoveCardMenu() {
-        removeCardTable.clear();
-        for (Card card : masterDeck) {
-            CardActor cardActor = new CardActor(card, game.font, () -> {
-                if (masterDeck.size() > 1) {
-                    player.addGold(-75);
-                    masterDeck.remove(card);
-                    usedRemoveService = true;
-                    removeCardTable.clear();
-                    refreshShopUI();
-                }
-            });
-            removeCardTable.add(cardActor).size(120, 160).pad(5);
-        }
-    }
-
-    private void leaveShop() {
-        shopOverlay.setVisible(false);
-        endTurnButton.setVisible(true);
-
-        spawnNextMonster();
-        monsterHpBar.setRange(0, monster.getMaxHp());
-        startNewCombat();
     }
 
     private void showGameOverScreen(String message, Color titleColor) {
@@ -580,8 +253,6 @@ public class GameScreen implements Screen {
     }
 
     private void updateUI() {
-        floorLabel.setText("Tầng: " + floor);
-
         StringBuilder relicsText = new StringBuilder("Cổ vật: ");
         for (Relic relic : player.getRelics()) {
             relicsText.append("[").append(relic.getName()).append("] ");
@@ -592,13 +263,10 @@ public class GameScreen implements Screen {
             + "\nGiáp: " + player.getBlock() + " | NL: " + player.getEnergy()
             + "\nVàng: " + player.getGold();
         if (player.getStrength() > 0) playerStatus += "\n[Sức mạnh: +" + player.getStrength() + "]";
-        if (player.getMetallicize() > 0) playerStatus += "\n[Kim loại hóa: +" + player.getMetallicize() + "]";
-        if (player.getVulnerableTurns() > 0) playerStatus += "\n[Dễ tổn thương: " + player.getVulnerableTurns() + "L]";
         playerLabel.setText(playerStatus);
 
         String monsterStatus = monster.getName() + "\nHP: " + monster.getHp() + "/" + monster.getMaxHp()
             + "\nGiáp: " + monster.getBlock();
-        if (monster.getVulnerableTurns() > 0) monsterStatus += "\n[Dễ tổn thương: " + monster.getVulnerableTurns() + "L]";
         monsterLabel.setText(monsterStatus);
 
         playerHpBar.setValue(player.getHp());
@@ -636,7 +304,7 @@ public class GameScreen implements Screen {
         skipBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                nextFloor();
+                finishCombatAndReturnToMap();
             }
         });
 
