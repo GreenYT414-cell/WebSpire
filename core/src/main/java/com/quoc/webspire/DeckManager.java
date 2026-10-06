@@ -13,28 +13,37 @@ public class DeckManager {
         drawPile.clear();
         hand.clear();
         discardPile.clear();
-        drawPile.addAll(masterDeck);
+
+        for (Card card : masterDeck) {
+            drawPile.add(card);
+        }
         Collections.shuffle(drawPile);
     }
 
-    public void draw(int amount) {
-        for (int i = 0; i < amount; i++) {
+    public void draw(int count) {
+        for (int i = 0; i < count; i++) {
             if (drawPile.isEmpty()) {
                 if (discardPile.isEmpty()) break;
                 drawPile.addAll(discardPile);
                 discardPile.clear();
                 Collections.shuffle(drawPile);
             }
-            hand.add(drawPile.remove(0));
+            if (!drawPile.isEmpty()) {
+                hand.add(drawPile.remove(0));
+            }
         }
     }
 
     public boolean playCard(Card card, Character player, Enemy monster) {
-        if (player.getEnergy() >= card.getCost()) {
-            player.useEnergy(card.getCost());
-            card.play(player, monster);
+        if (card.getCost() <= player.getEnergy()) {
+            player.setEnergy(player.getEnergy() - card.getCost());
+            card.use(player, monster);
             hand.remove(card);
-            discardPile.add(card);
+
+            // Lá Power sử dụng xong sẽ biến mất khỏi trận đánh
+            if (!card.isPower()) {
+                discardPile.add(card);
+            }
             return true;
         }
         return false;

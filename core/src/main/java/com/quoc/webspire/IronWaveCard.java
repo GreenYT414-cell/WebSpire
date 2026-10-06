@@ -1,34 +1,27 @@
 package com.quoc.webspire;
 
-import com.quoc.webspire.enums.CardType;
-
 public class IronWaveCard extends Card {
-    private int damage;
-    private int block;
 
     public IronWaveCard() {
-        super("Sóng Sắt", 1, CardType.ATTACK, "Gây 5 sát thương. Nhận 5 giáp.");
-        this.damage = 5;
-        this.block = 5;
+        // Tham số: Name, Cost, Damage, Block, Description
+        super("Sóng Sắt", 1, 5, 5, "Nhận 5 Giáp. Gây 5 sát thương.");
+    }
+
+    @Override
+    public void use(Character player, Enemy monster) {
+        int totalBlock = isUpgraded() ? 7 : 5;
+        int totalDamage = isUpgraded() ? 7 : 5;
+
+        player.addBlock(totalBlock);
+        monster.takeDamage(totalDamage + player.getStrength());
     }
 
     @Override
     public void upgrade() {
         if (!isUpgraded()) {
             setUpgraded(true);
-            this.damage = 7;
-            this.block = 7;
-            setDescription("Gây 7 sát thương. Nhận 7 giáp.");
+            setName("Sóng Sắt+");
+            setDescription("Nhận 7 Giáp. Gây 7 sát thương.");
         }
-    }
-
-    @Override
-    public void play(Character player, Enemy monster) {
-        int finalDamage = damage + player.getStrength();
-        if (player.getWeakTurns() > 0) finalDamage = (int)(finalDamage * 0.75f);
-        if (monster.getVulnerableTurns() > 0) finalDamage = (int)(finalDamage * 1.5f);
-
-        monster.takeDamage(finalDamage);
-        player.addBlock(block);
     }
 }

@@ -1,26 +1,24 @@
 package com.quoc.webspire;
 
-import com.quoc.webspire.enums.CardType;
-
 public class DefendCard extends Card {
-    private int block;
 
     public DefendCard() {
-        super("Phòng Thủ", 1, CardType.SKILL, "Nhận 5 giáp.");
-        this.block = 5;
+        // Tham số: Name, Cost, Damage, Block, Description
+        super("Phòng Thủ", 1, 0, 5, "Nhận 5 Giáp.");
+    }
+
+    @Override
+    public void use(Character player, Enemy monster) {
+        int totalBlock = isUpgraded() ? 8 : 5;
+        player.addBlock(totalBlock);
     }
 
     @Override
     public void upgrade() {
         if (!isUpgraded()) {
             setUpgraded(true);
-            this.block = 8;
-            setDescription("Nhận 8 giáp.");
+            setName("Phòng Thủ+");
+            setDescription("Nhận 8 Giáp.");
         }
-    }
-
-    @Override
-    public void play(Character player, Enemy monster) {
-        player.addBlock(this.block);
     }
 }

@@ -1,34 +1,29 @@
 package com.quoc.webspire;
 
-import com.quoc.webspire.enums.CardType;
-
 public class BashCard extends Card {
-    private int damage;
-    private int vulnerableTurns;
 
     public BashCard() {
-        super("Đòn Tàn Khốc", 2, CardType.ATTACK, "Gây 8 sát thương. Gây 2 Dễ bị tổn thương.");
-        this.damage = 8;
-        this.vulnerableTurns = 2;
+        // Truyền đúng 5 tham số: (Name, Cost, Damage, Block, Description)
+        super("Cú Nện", 2, 8, 0, "Gây 8 sát thương. Gây 2 lượt Dễ tổn thương.");
+    }
+
+    @Override
+    public void use(Character player, Enemy monster) {
+        int totalDamage = isUpgraded() ? 10 : 8;
+
+        // Gây sát thương
+        monster.takeDamage(totalDamage + player.getStrength());
+
+        // Gây 2 lượt Dễ tổn thương (Vulnerable)
+        monster.applyVulnerable(2);
     }
 
     @Override
     public void upgrade() {
         if (!isUpgraded()) {
             setUpgraded(true);
-            this.damage = 10;
-            this.vulnerableTurns = 3;
-            setDescription("Gây 10 sát thương. Gây 3 Dễ bị tổn thương.");
+            setName("Cú Nện+");
+            setDescription("Gây 10 sát thương. Gây 2 lượt Dễ tổn thương.");
         }
-    }
-
-    @Override
-    public void play(Character player, Enemy monster) {
-        int finalDamage = damage + player.getStrength();
-        if (player.getWeakTurns() > 0) finalDamage = (int)(finalDamage * 0.75f);
-        if (monster.getVulnerableTurns() > 0) finalDamage = (int)(finalDamage * 1.5f);
-
-        monster.takeDamage(finalDamage);
-        monster.applyVulnerable(vulnerableTurns);
     }
 }

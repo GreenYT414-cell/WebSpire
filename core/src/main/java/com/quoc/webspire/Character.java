@@ -10,64 +10,86 @@ public class Character {
     private int block;
     private int energy;
     private int maxEnergy;
-
     private int gold;
-    private List<Relic> relics = new ArrayList<>();
 
-    // Trạng thái (Status Effects)
     private int strength = 0;
     private int vulnerableTurns = 0;
-    private int weakTurns = 0;
+    private int metallicize = 0;
 
-    public Character(String name, int hp, int maxEnergy) {
+    private List<Relic> relics = new ArrayList<>();
+
+    public Character(String name, int maxHp, int maxEnergy) {
         this.name = name;
-        this.hp = hp;
-        this.maxHp = hp;
-        this.block = 0;
+        this.maxHp = maxHp;
+        this.hp = maxHp;
         this.maxEnergy = maxEnergy;
         this.energy = maxEnergy;
-        this.gold = 99;
+        this.gold = 100;
     }
 
     public void startTurn() {
-        this.energy = maxEnergy;
         this.block = 0;
+        this.energy = maxEnergy;
+        if (vulnerableTurns > 0) {
+            vulnerableTurns--;
+        }
+    }
 
-        if (vulnerableTurns > 0) vulnerableTurns--;
-        if (weakTurns > 0) weakTurns--;
+    public void triggerEndTurnPowers() {
+        if (metallicize > 0) {
+            addBlock(metallicize);
+        }
+    }
+
+    public void resetCombatStats() {
+        this.strength = 0;
+        this.vulnerableTurns = 0;
+        this.metallicize = 0;
+        this.block = 0;
     }
 
     public void takeDamage(int damage) {
-        if (damage <= 0) return;
-        if (block > 0) {
-            if (block >= damage) {
-                block -= damage;
-                return;
-            } else {
-                damage -= block;
-                block = 0;
-            }
+        if (vulnerableTurns > 0) {
+            damage = (int) (damage * 1.5f);
         }
-        hp -= damage;
-        if (hp < 0) hp = 0;
-    }
-
-    public void heal(int amount) {
-        if (amount <= 0) return;
-        this.hp += amount;
-        if (this.hp > maxHp) this.hp = maxHp;
+        if (block >= damage) {
+            block -= damage;
+        } else {
+            int unblockedDamage = damage - block;
+            block = 0;
+            hp -= unblockedDamage;
+            if (hp < 0) hp = 0;
+        }
     }
 
     public void addBlock(int amount) {
         this.block += amount;
     }
 
+    public void heal(int amount) {
+        this.hp += amount;
+        if (this.hp > maxHp) this.hp = maxHp;
+    }
+
+    public void addGold(int amount) {
+        this.gold += amount;
+        if (this.gold < 0) this.gold = 0;
+    }
+
+    public void addStrength(int amount) {
+        this.strength += amount;
+    }
+
+    public void addMetallicize(int amount) {
+        this.metallicize += amount;
+    }
+
     public void addRelic(Relic relic) {
-        this.relics.add(relic);
+        relics.add(relic);
     }
 
     public void triggerCombatStartRelics(Enemy monster) {
-        this.strength = 0; // Reset strength cơ bản trước trận
+        resetCombatStats();
         for (Relic relic : relics) {
             relic.onCombatStart(this, monster);
         }
@@ -78,24 +100,17 @@ public class Character {
             relic.onVictory(this);
         }
     }
-    public void setEnergy(int energy) {
-        this.energy = energy;
-    }
-
-    public void applyVulnerable(int turns) { vulnerableTurns += turns; }
-    public void applyWeak(int turns) { weakTurns += turns; }
-    public void addStrength(int amount) { strength += amount; }
-    public void addGold(int amount) { this.gold += amount; }
 
     public String getName() { return name; }
     public int getHp() { return hp; }
     public int getMaxHp() { return maxHp; }
     public int getBlock() { return block; }
     public int getEnergy() { return energy; }
-    public void useEnergy(int amount) { energy -= amount; }
     public int getGold() { return gold; }
     public int getStrength() { return strength; }
     public int getVulnerableTurns() { return vulnerableTurns; }
-    public int getWeakTurns() { return weakTurns; }
+    public int getMetallicize() { return metallicize; }
     public List<Relic> getRelics() { return relics; }
+
+    public void setEnergy(int energy) { this.energy = energy; }
 }
