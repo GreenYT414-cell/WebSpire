@@ -1,82 +1,69 @@
 package com.quoc.webspire;
 
-import com.quoc.webspire.enums.EnemyIntent;
-import java.util.Random;
-
 public class Enemy {
-    private String name;
-    private int hp;
-    private int maxHp;
-    private int block;
+    protected String name;
+    protected int hp;
+    protected int maxHp;
+    protected int block;
+    protected String currentIntent;
+    protected int intentValue;
+    protected int vulnerableTurns = 0;
 
-    private EnemyIntent currentIntent;
-    private int intentValue;
-    private Random random = new Random();
-
-    private int strength = 0;
-    private int vulnerableTurns = 0;
-    private int weakTurns = 0;
-
-    public Enemy(String name, int hp, int block) {
+    public Enemy(String name, int maxHp, int block) {
         this.name = name;
-        this.hp = hp;
-        this.maxHp = hp;
+        this.maxHp = maxHp;
+        this.hp = maxHp;
         this.block = block;
     }
 
     public void rollIntent() {
-        int roll = random.nextInt(100);
-        if (roll < 60) {
-            currentIntent = EnemyIntent.ATTACK;
-            intentValue = 6;
-        } else {
-            currentIntent = EnemyIntent.DEFEND;
-            intentValue = 5;
+        this.currentIntent = "Tấn công";
+        this.intentValue = 6;
+    }
+
+    public void executeIntent(Character player) {
+        if ("Tấn công".equals(currentIntent)) {
+            player.takeDamage(intentValue);
         }
     }
 
     public void startTurn() {
         this.block = 0;
-        if (vulnerableTurns > 0) vulnerableTurns--;
-        if (weakTurns > 0) weakTurns--;
-    }
-
-    public void executeIntent(Character player) {
-        if (currentIntent == EnemyIntent.ATTACK) {
-            int finalDamage = intentValue + strength;
-            if (weakTurns > 0) finalDamage = (int)(finalDamage * 0.75f);
-            if (player.getVulnerableTurns() > 0) finalDamage = (int)(finalDamage * 1.5f);
-
-            player.takeDamage(finalDamage);
-        } else if (currentIntent == EnemyIntent.DEFEND) {
-            this.block += intentValue;
+        if (vulnerableTurns > 0) {
+            vulnerableTurns--;
         }
     }
 
     public void takeDamage(int damage) {
-        if (damage <= 0) return;
-        if (block > 0) {
-            if (block >= damage) {
-                block -= damage;
-                return;
-            } else {
-                damage -= block;
-                block = 0;
-            }
+        if (vulnerableTurns > 0) {
+            damage = (int) (damage * 1.5f);
         }
-        hp -= damage;
-        if (hp < 0) hp = 0;
+        if (block >= damage) {
+            block -= damage;
+        } else {
+            int unblockedDamage = damage - block;
+            block = 0;
+            hp -= unblockedDamage;
+            if (hp < 0) hp = 0;
+        }
     }
 
-    public void applyVulnerable(int turns) { vulnerableTurns += turns; }
-    public void applyWeak(int turns) { weakTurns += turns; }
+    public void addBlock(int amount) {
+        this.block += amount;
+    }
+
+    public void applyVulnerable(int turns) {
+        this.vulnerableTurns += turns;
+    }
 
     public String getName() { return name; }
     public int getHp() { return hp; }
     public int getMaxHp() { return maxHp; }
     public int getBlock() { return block; }
-    public EnemyIntent getCurrentIntent() { return currentIntent; }
+    public String getCurrentIntent() { return currentIntent; }
     public int getIntentValue() { return intentValue; }
     public int getVulnerableTurns() { return vulnerableTurns; }
-    public int getWeakTurns() { return weakTurns; }
+
+    public void setCurrentIntent(String currentIntent) { this.currentIntent = currentIntent; }
+    public void setIntentValue(int intentValue) { this.intentValue = intentValue; }
 }

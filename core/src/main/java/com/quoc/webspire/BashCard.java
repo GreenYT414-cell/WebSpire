@@ -13,14 +13,20 @@ public class BashCard extends Card {
     }
 
     @Override
+    public void upgrade() {
+        if (!isUpgraded()) {
+            setUpgraded(true);
+            this.damage = 10;
+            this.vulnerableTurns = 3;
+            setDescription("Gây 10 sát thương. Gây 3 Dễ bị tổn thương.");
+        }
+    }
+
+    @Override
     public void play(Character player, Enemy monster) {
         int finalDamage = damage + player.getStrength();
-        if (player.getWeakTurns() > 0) {
-            finalDamage = (int)(finalDamage * 0.75f);
-        }
-        if (monster.getVulnerableTurns() > 0) {
-            finalDamage = (int)(finalDamage * 1.5f);
-        }
+        if (player.getWeakTurns() > 0) finalDamage = (int)(finalDamage * 0.75f);
+        if (monster.getVulnerableTurns() > 0) finalDamage = (int)(finalDamage * 1.5f);
 
         monster.takeDamage(finalDamage);
         monster.applyVulnerable(vulnerableTurns);

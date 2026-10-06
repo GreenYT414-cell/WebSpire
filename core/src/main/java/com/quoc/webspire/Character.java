@@ -78,6 +78,9 @@ public class Character {
             relic.onVictory(this);
         }
     }
+    public void setEnergy(int energy) {
+        this.energy = energy;
+    }
 
     public void applyVulnerable(int turns) { vulnerableTurns += turns; }
     public void applyWeak(int turns) { weakTurns += turns; }

@@ -11,6 +11,15 @@ public class DefendCard extends Card {
     }
 
     @Override
+    public void upgrade() {
+        if (!isUpgraded()) {
+            setUpgraded(true);
+            this.block = 8;
+            setDescription("Nhận 8 giáp.");
+        }
+    }
+
+    @Override
     public void play(Character player, Enemy monster) {
         player.addBlock(this.block);
     }

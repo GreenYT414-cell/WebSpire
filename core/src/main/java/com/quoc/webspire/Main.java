@@ -60,6 +60,24 @@ public class Main extends ApplicationAdapter {
     private Label rewardGoldLabel;
     private Label rewardRelicLabel;
 
+    // Overlay Trạm Nghỉ
+    private Table restSiteOverlay;
+    private Table forgeCardsTable;
+    private Label restSiteStatusLabel;
+
+    // Overlay Cửa Hàng (Shop)
+    private Table shopOverlay;
+    private Label shopTitleLabel;
+    private Label shopGoldLabel;
+    private Table shopCardsTable;
+    private Table shopRelicTable;
+    private Table removeCardTable;
+    private TextButton removeCardBtn;
+
+    private List<Card> currentShopCards = new ArrayList<>();
+    private boolean boughtRelicInShop = false;
+    private boolean usedRemoveService = false;
+
     private Random random = new Random();
 
     @Override
@@ -139,6 +157,8 @@ public class Main extends ApplicationAdapter {
 
         initGameOverOverlay();
         initRewardOverlay();
+        initRestSiteOverlay();
+        initShopOverlay();
 
         startNewCombat();
     }
@@ -146,8 +166,6 @@ public class Main extends ApplicationAdapter {
     private void initGameData() {
         floor = 1;
         player = new Character("Hiệp Sĩ", 50, 3);
-
-        // Thêm Cổ vật khởi đầu
         player.addRelic(new BurningBloodRelic());
 
         masterDeck = new ArrayList<>();
@@ -159,8 +177,13 @@ public class Main extends ApplicationAdapter {
     }
 
     private void spawnNextMonster() {
-        int monsterHp = 35 + (floor * 5);
-        monster = new Enemy("Goblin Tầng " + floor, monsterHp, 0);
+        if (floor == 10) {
+            // Tầng 10 là Trùm Slime Khổng Lồ 100 HP
+            monster = new BossEnemy("TRÙM: Slime Khổng Lồ", 100);
+        } else {
+            int monsterHp = 35 + (floor * 5);
+            monster = new Enemy("Goblin Tầng " + floor, monsterHp, 0);
+        }
 
         deckManager = new DeckManager();
         deckManager.initCombat(masterDeck);
@@ -209,11 +232,16 @@ public class Main extends ApplicationAdapter {
     }
 
     private void showRewardScreen() {
-        int rewardGold = 15 + random.nextInt(15);
+        if (floor == 10) {
+            // Hạ gục Boss Tầng 10!
+            showGameOverScreen("CHIẾN THẮNG TRÙM! CẬU ĐÃ PHÁ ĐẢO CHƯƠNG 1!", Color.GOLD);
+            return;
+        }
+
+        int rewardGold = 20 + random.nextInt(15);
         player.addGold(rewardGold);
         rewardGoldLabel.setText("Nhận được: " + rewardGold + " Vàng!");
 
-        // Thưởng Cổ vật đặc biệt ở Tầng 2
         if (floor == 2 && player.getRelics().size() < 2) {
             Relic newRelic = new VajraRelic();
             player.addRelic(newRelic);
@@ -257,9 +285,235 @@ public class Main extends ApplicationAdapter {
         endTurnButton.setVisible(true);
 
         floor++;
+
+        if (floor == 10) {
+            // Tiến tới Màn Trùm
+            spawnNextMonster();
+            monsterHpBar.setRange(0, monster.getMaxHp());
+            startNewCombat();
+        } else if (floor % 4 == 0) {
+            showShop();
+        } else if (floor % 3 == 0) {
+            showRestSite();
+        } else {
+            spawnNextMonster();
+            monsterHpBar.setRange(0, monster.getMaxHp());
+            startNewCombat();
+        }
+    }
+
+    private void showRestSite() {
+        endTurnButton.setVisible(false);
+        restSiteStatusLabel.setText("CẬU ĐÃ ĐẾN TRẠM NGHỈ (TẦNG " + floor + ")");
+        forgeCardsTable.clear();
+        restSiteOverlay.setVisible(true);
+    }
+
+    private void initRestSiteOverlay() {
+        restSiteOverlay = new Table();
+        restSiteOverlay.setFillParent(true);
+        restSiteOverlay.setBackground(createDrawable(0.05f, 0.1f, 0.05f, 0.95f));
+
+        Label.LabelStyle titleStyle = new Label.LabelStyle(font, Color.CHARTREUSE);
+        restSiteStatusLabel = new Label("", titleStyle);
+
+        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
+        btnStyle.font = font;
+        btnStyle.fontColor = Color.WHITE;
+        btnStyle.up = createDrawable(0.2f, 0.5f, 0.2f, 1f);
+
+        TextButton restBtn = new TextButton("Nghỉ Ngơi (+30% HP)", btnStyle);
+        restBtn.pad(10, 20, 10, 20);
+        restBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                int healAmount = (int)(player.getMaxHp() * 0.3f);
+                player.heal(healAmount);
+                leaveRestSite();
+            }
+        });
+
+        TextButton forgeBtn = new TextButton("Rèn Luyện (Nâng Cấp Bài)", btnStyle);
+        forgeBtn.pad(10, 20, 10, 20);
+        forgeBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                openForgeMenu();
+            }
+        });
+
+        Table btnTable = new Table();
+        btnTable.add(restBtn).pad(15);
+        btnTable.add(forgeBtn).pad(15);
+
+        forgeCardsTable = new Table();
+
+        restSiteOverlay.add(restSiteStatusLabel).padBottom(20).row();
+        restSiteOverlay.add(btnTable).padBottom(20).row();
+        restSiteOverlay.add(forgeCardsTable).row();
+
+        restSiteOverlay.setVisible(false);
+        stage.addActor(restSiteOverlay);
+    }
+
+    private void openForgeMenu() {
+        forgeCardsTable.clear();
+        for (Card card : masterDeck) {
+            if (!card.isUpgraded()) {
+                CardActor cardActor = new CardActor(card, font, () -> {
+                    card.upgrade();
+                    leaveRestSite();
+                });
+                forgeCardsTable.add(cardActor).size(140, 190).pad(5);
+            }
+        }
+    }
+
+    private void leaveRestSite() {
+        restSiteOverlay.setVisible(false);
+        endTurnButton.setVisible(true);
+
         spawnNextMonster();
         monsterHpBar.setRange(0, monster.getMaxHp());
+        startNewCombat();
+    }
 
+    private void showShop() {
+        endTurnButton.setVisible(false);
+        boughtRelicInShop = false;
+        usedRemoveService = false;
+
+        currentShopCards = generateRewardCards(3);
+
+        shopTitleLabel.setText("CỬA HÀNG THƯƠNG NHÂN (TẦNG " + floor + ")");
+        refreshShopUI();
+        shopOverlay.setVisible(true);
+    }
+
+    private void initShopOverlay() {
+        shopOverlay = new Table();
+        shopOverlay.setFillParent(true);
+        shopOverlay.setBackground(createDrawable(0.15f, 0.1f, 0.05f, 0.95f));
+
+        Label.LabelStyle titleStyle = new Label.LabelStyle(font, Color.GOLD);
+        Label.LabelStyle goldStyle = new Label.LabelStyle(font, Color.YELLOW);
+
+        shopTitleLabel = new Label("", titleStyle);
+        shopGoldLabel = new Label("", goldStyle);
+
+        shopCardsTable = new Table();
+        shopRelicTable = new Table();
+        removeCardTable = new Table();
+
+        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
+        btnStyle.font = font;
+        btnStyle.fontColor = Color.WHITE;
+        btnStyle.up = createDrawable(0.6f, 0.4f, 0.1f, 1f);
+
+        TextButton leaveShopBtn = new TextButton("Rời Cửa Hàng", btnStyle);
+        leaveShopBtn.pad(10, 25, 10, 25);
+        leaveShopBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                leaveShop();
+            }
+        });
+
+        removeCardBtn = new TextButton("Xóa 1 lá bài (75 Vàng)", btnStyle);
+        removeCardBtn.pad(8, 15, 8, 15);
+        removeCardBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (!usedRemoveService && player.getGold() >= 75) {
+                    openRemoveCardMenu();
+                }
+            }
+        });
+
+        shopOverlay.add(shopTitleLabel).padBottom(5).row();
+        shopOverlay.add(shopGoldLabel).padBottom(15).row();
+        shopOverlay.add(shopCardsTable).padBottom(15).row();
+        shopOverlay.add(shopRelicTable).padBottom(15).row();
+        shopOverlay.add(removeCardBtn).padBottom(10).row();
+        shopOverlay.add(removeCardTable).padBottom(15).row();
+        shopOverlay.add(leaveShopBtn);
+
+        shopOverlay.setVisible(false);
+        stage.addActor(shopOverlay);
+    }
+
+    private void refreshShopUI() {
+        shopGoldLabel.setText("Vàng hiện tại: " + player.getGold());
+
+        if (usedRemoveService) {
+            removeCardBtn.setText("[Đã dùng dịch vụ xóa bài]");
+        } else {
+            removeCardBtn.setText("Xóa 1 lá bài (75 Vàng)");
+        }
+
+        shopCardsTable.clear();
+        for (Card card : new ArrayList<>(currentShopCards)) {
+            CardActor cardActor = new CardActor(card, font, () -> {
+                if (player.getGold() >= 50) {
+                    player.addGold(-50);
+                    masterDeck.add(card);
+                    currentShopCards.remove(card);
+                    refreshShopUI();
+                }
+            });
+            shopCardsTable.add(cardActor).size(140, 190).pad(10);
+        }
+
+        shopRelicTable.clear();
+        if (!boughtRelicInShop) {
+            Relic anchor = new AnchorRelic();
+            TextButton.TextButtonStyle relicBtnStyle = new TextButton.TextButtonStyle();
+            relicBtnStyle.font = font;
+            relicBtnStyle.fontColor = Color.CYAN;
+            relicBtnStyle.up = createDrawable(0.1f, 0.3f, 0.4f, 1f);
+
+            TextButton buyRelicBtn = new TextButton("Mua Cổ Vật: " + anchor.getName() + " (150 Vàng)\n" + anchor.getDescription(), relicBtnStyle);
+            buyRelicBtn.pad(10, 20, 10, 20);
+            buyRelicBtn.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    if (player.getGold() >= 150) {
+                        player.addGold(-150);
+                        player.addRelic(anchor);
+                        boughtRelicInShop = true;
+                        refreshShopUI();
+                    }
+                }
+            });
+            shopRelicTable.add(buyRelicBtn);
+        } else {
+            Label soldOutLabel = new Label("[Cổ vật đã được mua]", new Label.LabelStyle(font, Color.GRAY));
+            shopRelicTable.add(soldOutLabel);
+        }
+    }
+
+    private void openRemoveCardMenu() {
+        removeCardTable.clear();
+        for (Card card : masterDeck) {
+            CardActor cardActor = new CardActor(card, font, () -> {
+                if (masterDeck.size() > 1) {
+                    player.addGold(-75);
+                    masterDeck.remove(card);
+                    usedRemoveService = true;
+                    removeCardTable.clear();
+                    refreshShopUI();
+                }
+            });
+            removeCardTable.add(cardActor).size(120, 160).pad(5);
+        }
+    }
+
+    private void leaveShop() {
+        shopOverlay.setVisible(false);
+        endTurnButton.setVisible(true);
+
+        spawnNextMonster();
+        monsterHpBar.setRange(0, monster.getMaxHp());
         startNewCombat();
     }
 
@@ -298,7 +552,6 @@ public class Main extends ApplicationAdapter {
     private void updateUI() {
         floorLabel.setText("Tầng: " + floor);
 
-        // Hiển thị danh sách Cổ vật
         StringBuilder relicsText = new StringBuilder("Cổ vật: ");
         for (Relic relic : player.getRelics()) {
             relicsText.append("[").append(relic.getName()).append("] ");
@@ -415,7 +668,7 @@ public class Main extends ApplicationAdapter {
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("font.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
         parameter.size = 20;
-        parameter.characters = "aAàÀảẢãÃáÁạẠăĂằẰẳẲẵẴắẮặẶâÂầẦẩẨẫẪấẤậẬbBcCdDđĐeEèÈẻẺẽẽéÉẹẸêÊềỀểỂễỄếẾệỆfFgGhHiIìÌỉỈĩĨíÍịỊjJkKlLmMnNoOòÒỏỎõÕóÓọỌôÔồỒổỔỗỖốỐộỘơƠờỜởỞỡỠớỚợỢpPqQrRsStTuUùÙủỦũŨúÚụỤưƯừỪửỬữỮứỨựỰvVwWxXyYỳỲỷỶỹỸýÝỵỴzZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/? ";
+        parameter.characters = "aAàÀảẢãÃáÁạẠăĂằẰẳẲẵẴắẮặẶâÂầẦẩẨẫẪấẤậẬbBcCdDđĐeEèÈẻẺẽẼéÉẹẸêÊềỀểỂễỄếẾệỆfFgGhHiIìÌỉỈĩĨíÍịỊjJkKlLmMnNoOòÒỏỎõÕóÓọỌôÔồỒổỔỗỖốỐộỘơƠờỜởỞỡỠớỚợỢpPqQrRsStTuUùÙủỦũŨúÚụỤưƯừỪửỬữỮứỨựỰvVwWxXyYỳỲỷỶỹỸýÝỵỴzZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/? ";
 
         font = generator.generateFont(parameter);
         generator.dispose();

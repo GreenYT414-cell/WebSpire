@@ -13,6 +13,16 @@ public class IronWaveCard extends Card {
     }
 
     @Override
+    public void upgrade() {
+        if (!isUpgraded()) {
+            setUpgraded(true);
+            this.damage = 7;
+            this.block = 7;
+            setDescription("Gây 7 sát thương. Nhận 7 giáp.");
+        }
+    }
+
+    @Override
     public void play(Character player, Enemy monster) {
         int finalDamage = damage + player.getStrength();
         if (player.getWeakTurns() > 0) finalDamage = (int)(finalDamage * 0.75f);
