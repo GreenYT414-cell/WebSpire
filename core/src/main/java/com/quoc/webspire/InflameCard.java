@@ -2,22 +2,24 @@ package com.quoc.webspire;
 
 public class InflameCard extends Card {
     public InflameCard() {
-        super("Bùng Cháy", 1, 0, 0, "Nhận +2 Sức mạnh.");
-        setPower(true);
+        super("Thiêu Đốt", 1, CardType.POWER, "Nhận +2 Sức Mạnh.");
     }
 
     @Override
-    public void use(Character player, Enemy monster) {
-        int amount = isUpgraded() ? 3 : 2;
-        player.addStrength(amount);
+    public boolean use(Character player, Enemy monster) {
+        if (player.useEnergy(getCost())) {
+            player.applyStatus(StatusEffect.Type.STRENGTH, isUpgraded() ? 3 : 2);
+            return true;
+        }
+        return false;
     }
 
     @Override
     public void upgrade() {
         if (!isUpgraded()) {
             setUpgraded(true);
-            setName("Bùng Cháy+");
-            setDescription("Nhận +3 Sức mạnh.");
+            setName("Thiêu Đốt+");
+            setDescription("Nhận +3 Sức Mạnh.");
         }
     }
 }

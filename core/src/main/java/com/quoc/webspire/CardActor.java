@@ -1,75 +1,64 @@
 package com.quoc.webspire;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Pixmap;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 
 public class CardActor extends Table {
     private Card card;
-    private TextureRegionDrawable normalBg;
-    private TextureRegionDrawable hoverBg;
 
     public CardActor(Card card, BitmapFont font, Runnable onClick) {
         this.card = card;
 
-        normalBg = createDrawable(0.25f, 0.25f, 0.4f, 0.95f);
-        hoverBg = createDrawable(0.35f, 0.35f, 0.6f, 1f);
+        // Định màu sắc riêng cho từng loại thẻ bài (Đỏ: Tấn công, Xanh dương: Phòng thủ, Xanh lá: Kỹ năng, Vàng: Sức mạnh)
+        Color bgColor;
 
-        this.setBackground(normalBg);
-        this.setSize(140, 190);
+        switch (card.getType()) {
+            case ATTACK:
+                bgColor = new Color(0.35f, 0.12f, 0.12f, 0.95f);
+                break;
+            case DEFENSE:
+                bgColor = new Color(0.12f, 0.22f, 0.38f, 0.95f);
+                break;
+            case SKILL:
+                bgColor = new Color(0.12f, 0.30f, 0.20f, 0.95f);
+                break;
+            case POWER:
+                bgColor = new Color(0.35f, 0.28f, 0.10f, 0.95f);
+                break;
+            default:
+                bgColor = new Color(0.2f, 0.2f, 0.2f, 0.95f);
+                break;
+        }
 
-        Label.LabelStyle titleStyle = new Label.LabelStyle(font, Color.GOLD);
+        setBackground(Assets.createColorDrawable(bgColor.r, bgColor.g, bgColor.b, bgColor.a));
+        pad(8);
+
         Label.LabelStyle costStyle = new Label.LabelStyle(font, Color.CYAN);
+        Label.LabelStyle nameStyle = new Label.LabelStyle(font, card.isUpgraded() ? Color.GREEN : Color.GOLD);
         Label.LabelStyle descStyle = new Label.LabelStyle(font, Color.WHITE);
 
-        this.top().pad(10);
-        this.add(new Label("[" + card.getCost() + " NL]", costStyle)).right().row();
-        this.add(new Label(card.getName(), titleStyle)).padTop(8).row();
+        Label costLabel = new Label("[" + card.getCost() + " NL]", costStyle);
+        Label nameLabel = new Label(card.getName(), nameStyle);
 
         Label descLabel = new Label(card.getDescription(), descStyle);
         descLabel.setWrap(true);
-        this.add(descLabel).width(120).padTop(12).row();
 
-        this.addListener(new ClickListener() {
+        add(costLabel).right().padBottom(5).row();
+        add(nameLabel).center().padBottom(8).row();
+        add(descLabel).width(120).expandY().top().padBottom(5).row();
+
+        addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                onClick.run();
-            }
-        });
-
-        this.addListener(new InputListener() {
-            @Override
-            public void enter(InputEvent event, float x, float y, int pointer, Actor fromActor) {
-                if (pointer == -1) {
-                    setBackground(hoverBg);
-                }
-            }
-
-            @Override
-            public void exit(InputEvent event, float x, float y, int pointer, Actor toActor) {
-                if (pointer == -1) {
-                    setBackground(normalBg);
+                if (onClick != null) {
+                    onClick.run();
                 }
             }
         });
-    }
-
-    private TextureRegionDrawable createDrawable(float r, float g, float b, float a) {
-        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-        pixmap.setColor(r, g, b, a);
-        pixmap.fill();
-        Texture texture = new Texture(pixmap);
-        pixmap.dispose();
-        return new TextureRegionDrawable(new TextureRegion(texture));
     }
 
     public Card getCard() {

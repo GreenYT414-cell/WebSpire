@@ -1,16 +1,17 @@
 package com.quoc.webspire;
 
 public class DefendCard extends Card {
-
     public DefendCard() {
-        // Tham số: Name, Cost, Damage, Block, Description
-        super("Phòng Thủ", 1, 0, 5, "Nhận 5 Giáp.");
+        super("Phòng Thủ", 1, CardType.DEFENSE, "Nhận 5 Giáp.");
     }
 
     @Override
-    public void use(Character player, Enemy monster) {
-        int totalBlock = isUpgraded() ? 8 : 5;
-        player.addBlock(totalBlock);
+    public boolean use(Character player, Enemy monster) {
+        if (player.useEnergy(getCost())) {
+            player.addBlock(isUpgraded() ? 8 : 5);
+            return true;
+        }
+        return false;
     }
 
     @Override

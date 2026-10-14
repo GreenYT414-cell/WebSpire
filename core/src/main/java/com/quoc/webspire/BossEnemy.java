@@ -19,19 +19,8 @@ public class BossEnemy extends Enemy {
             this.currentIntent = "Gồng Giáp Tích Lực";
             this.intentValue = 12;
         } else {
-            this.currentIntent = "ĐÒN HỦY DIỆT";
+            this.currentIntent = "Dồn Hủy Diệt";
             this.intentValue = 25;
-        }
-    }
-
-    @Override
-    public void executeIntent(Character player) {
-        if ("Tấn Công Vũ Bão".equals(getCurrentIntent())) {
-            player.takeDamage(getIntentValue());
-        } else if ("Gồng Giáp Tích Lực".equals(getCurrentIntent())) {
-            this.block += getIntentValue();
-        } else if ("ĐÒN HỦY DIỆT".equals(getCurrentIntent())) {
-            player.takeDamage(getIntentValue());
         }
     }
 }

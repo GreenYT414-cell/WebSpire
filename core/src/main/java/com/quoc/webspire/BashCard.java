@@ -1,21 +1,19 @@
 package com.quoc.webspire;
 
 public class BashCard extends Card {
-
     public BashCard() {
-        // Truyền đúng 5 tham số: (Name, Cost, Damage, Block, Description)
-        super("Cú Nện", 2, 8, 0, "Gây 8 sát thương. Gây 2 lượt Dễ tổn thương.");
+        super("Cú Nện", 2, CardType.ATTACK, "Gây 8 sát thương. Gán 2 Lỗ Hổng.");
     }
 
     @Override
-    public void use(Character player, Enemy monster) {
-        int totalDamage = isUpgraded() ? 10 : 8;
-
-        // Gây sát thương
-        monster.takeDamage(totalDamage + player.getStrength());
-
-        // Gây 2 lượt Dễ tổn thương (Vulnerable)
-        monster.applyVulnerable(2);
+    public boolean use(Character player, Enemy monster) {
+        if (player.useEnergy(getCost())) {
+            int damage = player.calculateDamageOutput(isUpgraded() ? 10 : 8);
+            monster.takeDamage(damage);
+            monster.applyStatus(StatusEffect.Type.VULNERABLE, isUpgraded() ? 3 : 2);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -23,7 +21,7 @@ public class BashCard extends Card {
         if (!isUpgraded()) {
             setUpgraded(true);
             setName("Cú Nện+");
-            setDescription("Gây 10 sát thương. Gây 2 lượt Dễ tổn thương.");
+            setDescription("Gây 10 sát thương. Gán 3 Lỗ Hổng.");
         }
     }
 }

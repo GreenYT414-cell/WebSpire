@@ -1,19 +1,19 @@
 package com.quoc.webspire;
 
 public class IronWaveCard extends Card {
-
     public IronWaveCard() {
-        // Tham số: Name, Cost, Damage, Block, Description
-        super("Sóng Sắt", 1, 5, 5, "Nhận 5 Giáp. Gây 5 sát thương.");
+        super("Sóng Sắt", 1, CardType.ATTACK, "Nhận 5 Giáp. Gây 5 sát thương.");
     }
 
     @Override
-    public void use(Character player, Enemy monster) {
-        int totalBlock = isUpgraded() ? 7 : 5;
-        int totalDamage = isUpgraded() ? 7 : 5;
-
-        player.addBlock(totalBlock);
-        monster.takeDamage(totalDamage + player.getStrength());
+    public boolean use(Character player, Enemy monster) {
+        if (player.useEnergy(getCost())) {
+            player.addBlock(isUpgraded() ? 7 : 5);
+            int damage = player.calculateDamageOutput(isUpgraded() ? 7 : 5);
+            monster.takeDamage(damage);
+            return true;
+        }
+        return false;
     }
 
     @Override

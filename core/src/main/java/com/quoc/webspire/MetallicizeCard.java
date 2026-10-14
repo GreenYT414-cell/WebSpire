@@ -2,14 +2,16 @@ package com.quoc.webspire;
 
 public class MetallicizeCard extends Card {
     public MetallicizeCard() {
-        super("Kim Loại Hóa", 1, 0, 0, "Nhận +3 Giáp tự động ở cuối mỗi lượt.");
-        setPower(true);
+        super("Kim Loại Hóa", 1, CardType.POWER, "Nhận 3 Giáp ngay lập tức.");
     }
 
     @Override
-    public void use(Character player, Enemy monster) {
-        int amount = isUpgraded() ? 4 : 3;
-        player.addMetallicize(amount);
+    public boolean use(Character player, Enemy monster) {
+        if (player.useEnergy(getCost())) {
+            player.addBlock(isUpgraded() ? 5 : 3);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -17,7 +19,7 @@ public class MetallicizeCard extends Card {
         if (!isUpgraded()) {
             setUpgraded(true);
             setName("Kim Loại Hóa+");
-            setDescription("Nhận +4 Giáp tự động ở cuối mỗi lượt.");
+            setDescription("Nhận 5 Giáp ngay lập tức.");
         }
     }
 }

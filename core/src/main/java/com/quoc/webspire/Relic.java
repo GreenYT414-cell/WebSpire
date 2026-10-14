@@ -9,10 +9,7 @@ public abstract class Relic {
         this.description = description;
     }
 
-    // Sự kiện kích hoạt khi bắt đầu trận đấu mới
     public void onCombatStart(Character player, Enemy monster) {}
-
-    // Sự kiện kích hoạt khi kết thúc trận đấu (chiến thắng)
     public void onVictory(Character player) {}
 
     public String getName() { return name; }
