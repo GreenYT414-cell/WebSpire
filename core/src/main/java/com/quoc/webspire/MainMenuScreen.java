@@ -25,7 +25,6 @@ public class MainMenuScreen implements Screen {
         this.game = game;
         this.stage = new Stage(new FitViewport(1280, 720), game.batch);
 
-        // Tải hình nền nếu có (Ví dụ: assets/menu_bg.png), nếu chưa có sẽ dùng màu nền
         if (Gdx.files.internal("menu_bg.png").exists()) {
             bgTexture = new Texture(Gdx.files.internal("menu_bg.png"));
         }
@@ -54,7 +53,7 @@ public class MainMenuScreen implements Screen {
         startBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // Chuyển sang màn hình Bản đồ thay vì vào thẳng trận đấu
+                RunState.getInstance().startNewRun();
                 game.setScreen(new MapScreen(game));
             }
         });

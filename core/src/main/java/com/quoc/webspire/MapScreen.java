@@ -48,13 +48,12 @@ public class MapScreen implements Screen {
         root.setFillParent(true);
 
         Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.GOLD);
-        Label titleLabel = new Label("BẢN ĐỒ THÁP WEBSPIRE", titleStyle);
+        Label titleLabel = new Label("BẢN ĐỒ THÁP WEBSPIRE - TẦNG " + RunState.getInstance().getCurrentFloor(), titleStyle);
         root.add(titleLabel).padTop(10).padBottom(20).row();
 
         Table mapTable = new Table();
         mapTable.bottom();
 
-        // Vẽ từ tầng 1 đến tầng 15
         for (int floor = 0; floor < mapData.size(); floor++) {
             List<MapNode> floorNodes = mapData.get(floor);
             Table floorTable = new Table();
@@ -98,28 +97,38 @@ public class MapScreen implements Screen {
         selectedNode.setVisited(true);
         selectedNode.setAccessible(false);
 
-        // Khóa các nút khác ở cùng tầng
         for (MapNode node : mapData.get(selectedNode.getFloor())) {
             node.setAccessible(false);
         }
 
-        // Mở khóa các nút tầng kế tiếp nối từ nút này
         for (MapNode next : selectedNode.getNextNodes()) {
             next.setAccessible(true);
         }
 
-        // Cập nhật giao diện tất cả các nút
         for (Map.Entry<MapNode, TextButton> entry : nodeButtonMap.entrySet()) {
             updateButtonAppearance(entry.getValue().getStyle(), entry.getKey());
         }
 
-        // Chuyển sang trận đấu
         enterNodeScreen(selectedNode);
     }
 
     private void enterNodeScreen(MapNode node) {
-        // Truyền 'this' (MapScreen hiện tại) sang GameScreen để sau khi đánh xong có thể quay về
-        game.setScreen(new GameScreen(game, this));
+        RunState.getInstance().setCurrentFloor(node.getFloor() + 1);
+
+        switch (node.getType()) {
+            case MONSTER:
+            case ELITE:
+            case BOSS:
+            case TREASURE:
+                game.setScreen(new GameScreen(game, this));
+                break;
+            case REST:
+                game.setScreen(new RestScreen(game, this));
+                break;
+            case SHOP:
+                game.setScreen(new ShopScreen(game, this));
+                break;
+        }
     }
 
     private void updateButtonAppearance(TextButton.TextButtonStyle style, MapNode node) {
@@ -139,7 +148,6 @@ public class MapScreen implements Screen {
     public void render(float delta) {
         ScreenUtils.clear(0.08f, 0.08f, 0.12f, 1f);
 
-        // Vẽ các đường nối giữa các Nút
         shapeRenderer.setProjectionMatrix(stage.getCamera().combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         shapeRenderer.setColor(Color.GRAY);

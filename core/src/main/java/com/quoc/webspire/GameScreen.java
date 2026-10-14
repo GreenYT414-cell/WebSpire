@@ -19,6 +19,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public class GameScreen implements Screen {
@@ -31,7 +32,8 @@ public class GameScreen implements Screen {
     private DeckManager deckManager;
     private List<Card> masterDeck;
 
-    private Label playerLabel, monsterLabel, intentLabel, relicListLabel;
+    private Label playerLabel, monsterLabel, intentLabel, relicListLabel, floorLabel;
+    private Label playerStatusLabel, monsterStatusLabel;
     private ProgressBar playerHpBar, monsterHpBar;
     private Label drawPileLabel, discardPileLabel;
 
@@ -66,11 +68,17 @@ public class GameScreen implements Screen {
         Label.LabelStyle intentStyle = new Label.LabelStyle(game.font, Color.SCARLET);
         Label.LabelStyle pileStyle = new Label.LabelStyle(game.font, Color.LIGHT_GRAY);
         Label.LabelStyle relicStyle = new Label.LabelStyle(game.font, Color.ORANGE);
+        Label.LabelStyle floorStyle = new Label.LabelStyle(game.font, Color.GOLD);
+        Label.LabelStyle statusStyle = new Label.LabelStyle(game.font, Color.CYAN);
 
+        floorLabel = new Label("TẦNG: " + RunState.getInstance().getCurrentFloor(), floorStyle);
         relicListLabel = new Label("", relicStyle);
         playerLabel = new Label("", labelStyle);
         monsterLabel = new Label("", labelStyle);
         intentLabel = new Label("", intentStyle);
+
+        playerStatusLabel = new Label("", statusStyle);
+        monsterStatusLabel = new Label("", statusStyle);
 
         drawPileLabel = new Label("", pileStyle);
         discardPileLabel = new Label("", pileStyle);
@@ -79,17 +87,20 @@ public class GameScreen implements Screen {
         monsterHpBar = new ProgressBar(0, monster.getMaxHp(), 1, false, createHpBarStyle(Color.RED));
 
         Table topBar = new Table();
+        topBar.add(floorLabel).left().padLeft(20);
         topBar.add(relicListLabel).expandX().right().padRight(20);
         rootTable.add(topBar).colspan(2).fillX().padTop(10).row();
 
         Table playerBox = new Table();
         playerBox.add(playerLabel).row();
-        playerBox.add(playerHpBar).width(200).height(20).padTop(8);
+        playerBox.add(playerHpBar).width(200).height(20).padTop(8).row();
+        playerBox.add(playerStatusLabel).padTop(5);
 
         Table monsterBox = new Table();
         monsterBox.add(intentLabel).row();
         monsterBox.add(monsterLabel).row();
-        monsterBox.add(monsterHpBar).width(200).height(20).padTop(8);
+        monsterBox.add(monsterHpBar).width(200).height(20).padTop(8).row();
+        monsterBox.add(monsterStatusLabel).padTop(5);
 
         rootTable.add(playerBox).expandX().padTop(10);
         rootTable.add(monsterBox).expandX().padTop(10);
@@ -128,16 +139,20 @@ public class GameScreen implements Screen {
     }
 
     private void initGameData() {
-        player = new Character("Hiệp Sĩ", 50, 3);
-        player.addRelic(new BurningBloodRelic());
+        RunState runState = RunState.getInstance();
+        this.player = runState.getPlayer();
+        this.masterDeck = runState.getMasterDeck();
 
-        masterDeck = new ArrayList<>();
-        for (int i = 0; i < 4; i++) masterDeck.add(new StrikeCard());
-        for (int i = 0; i < 4; i++) masterDeck.add(new DefendCard());
-        masterDeck.add(new BashCard());
+        int floor = runState.getCurrentFloor();
 
-        int monsterHp = 35 + random.nextInt(15);
-        monster = new Enemy("Goblin Quái Vật", monsterHp, 0);
+        if (floor == 15) {
+            monster = new BossEnemy("TRÙM CHƯƠNG 1: Slime Khổng Lồ", 100);
+        } else if (floor > 10) {
+            monster = new DarkKnightEnemy("Hiệp Sĩ Bóng Đêm", 60 + (floor * 3));
+        } else {
+            int monsterHp = 30 + (floor * 4);
+            monster = new Enemy("Goblin Quái Vật", monsterHp, 0);
+        }
 
         deckManager = new DeckManager();
         deckManager.initCombat(masterDeck);
@@ -163,7 +178,7 @@ public class GameScreen implements Screen {
         deckManager.discardHand();
         refreshHandUI();
 
-        player.triggerEndTurnPowers();
+        player.triggerEndTurnStatuses();
 
         monster.startTurn();
         monster.executeIntent(player);
@@ -211,8 +226,6 @@ public class GameScreen implements Screen {
     private void finishCombatAndReturnToMap() {
         rewardOverlay.setVisible(false);
         endTurnButton.setVisible(true);
-
-        // Quay về Màn hình Bản đồ để người chơi chọn bước đi kế tiếp
         game.setScreen(mapScreen);
     }
 
@@ -224,8 +237,8 @@ public class GameScreen implements Screen {
                 case 0: options.add(new StrikeCard()); break;
                 case 1: options.add(new DefendCard()); break;
                 case 2: options.add(new BashCard()); break;
-                case 3: options.add(new IronWaveCard()); break;
-                default: options.add(new DefendCard()); break;
+                case 3: options.add(new PoisonStabCard()); break;
+                default: options.add(new ShockwaveCard()); break;
             }
         }
         return options;
@@ -259,18 +272,35 @@ public class GameScreen implements Screen {
         }
         relicListLabel.setText(relicsText.toString());
 
-        String playerStatus = player.getName() + "\nHP: " + player.getHp() + "/" + player.getMaxHp()
+        String playerText = player.getName() + "\nHP: " + player.getHp() + "/" + player.getMaxHp()
             + "\nGiáp: " + player.getBlock() + " | NL: " + player.getEnergy()
             + "\nVàng: " + player.getGold();
-        if (player.getStrength() > 0) playerStatus += "\n[Sức mạnh: +" + player.getStrength() + "]";
-        playerLabel.setText(playerStatus);
+        playerLabel.setText(playerText);
 
-        String monsterStatus = monster.getName() + "\nHP: " + monster.getHp() + "/" + monster.getMaxHp()
+        String monsterText = monster.getName() + "\nHP: " + monster.getHp() + "/" + monster.getMaxHp()
             + "\nGiáp: " + monster.getBlock();
-        monsterLabel.setText(monsterStatus);
+        monsterLabel.setText(monsterText);
 
         playerHpBar.setValue(player.getHp());
         monsterHpBar.setValue(monster.getHp());
+
+        // Hiển thị Buff / Debuff của Player
+        StringBuilder pStatus = new StringBuilder();
+        for (Map.Entry<StatusEffect.Type, Integer> entry : player.getStatuses().entrySet()) {
+            if (entry.getValue() > 0) {
+                pStatus.append("[").append(entry.getKey().getName()).append(": ").append(entry.getValue()).append("] ");
+            }
+        }
+        playerStatusLabel.setText(pStatus.toString());
+
+        // Hiển thị Buff / Debuff của Monster
+        StringBuilder mStatus = new StringBuilder();
+        for (Map.Entry<StatusEffect.Type, Integer> entry : monster.getStatuses().entrySet()) {
+            if (entry.getValue() > 0) {
+                mStatus.append("[").append(entry.getKey().getName()).append(": ").append(entry.getValue()).append("] ");
+            }
+        }
+        monsterStatusLabel.setText(mStatus.toString());
 
         drawPileLabel.setText("Bài rút:\n" + deckManager.getDrawPile().size() + " lá");
         discardPileLabel.setText("Bài bỏ:\n" + deckManager.getDiscardPile().size() + " lá");
