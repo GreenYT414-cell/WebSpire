@@ -3,9 +3,7 @@ package com.quoc.webspire;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -13,7 +11,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
@@ -46,6 +43,7 @@ public class GameScreen implements Screen {
     private Table rewardOverlay, rewardCardsTable;
     private Label rewardGoldLabel, rewardRelicLabel;
 
+    private Texture combatBgTexture;
     private Random random = new Random();
 
     public GameScreen(Main game, MapScreen mapScreen) {
@@ -57,6 +55,9 @@ public class GameScreen implements Screen {
     @Override
     public void show() {
         Gdx.input.setInputProcessor(stage);
+
+        SoundManager.getInstance().playBgm("bgm_combat.mp3");
+        combatBgTexture = Assets.getTexture("bg_combat.png");
 
         initGameData();
 
@@ -83,43 +84,48 @@ public class GameScreen implements Screen {
         drawPileLabel = new Label("", pileStyle);
         discardPileLabel = new Label("", pileStyle);
 
-        playerHpBar = new ProgressBar(0, player.getMaxHp(), 1, false, createHpBarStyle(Color.GREEN));
-        monsterHpBar = new ProgressBar(0, monster.getMaxHp(), 1, false, createHpBarStyle(Color.RED));
+        playerHpBar = new ProgressBar(0, player.getMaxHp(), 1, false, createHpBarStyle(Color.LIME));
+        monsterHpBar = new ProgressBar(0, monster.getMaxHp(), 1, false, createHpBarStyle(Color.FIREBRICK));
 
         Table topBar = new Table();
-        topBar.add(floorLabel).left().padLeft(20);
-        topBar.add(relicListLabel).expandX().right().padRight(20);
-        rootTable.add(topBar).colspan(2).fillX().padTop(10).row();
+        topBar.setBackground(Assets.createColorDrawable(0f, 0f, 0f, 0.6f));
+        topBar.add(floorLabel).left().pad(10, 20, 10, 0);
+        topBar.add(relicListLabel).expandX().right().pad(10, 0, 10, 20);
+        rootTable.add(topBar).colspan(2).fillX().row();
 
         Table playerBox = new Table();
+        playerBox.setBackground(Assets.createColorDrawable(0.1f, 0.15f, 0.25f, 0.85f));
+        playerBox.pad(15);
         playerBox.add(playerLabel).row();
-        playerBox.add(playerHpBar).width(200).height(20).padTop(8).row();
-        playerBox.add(playerStatusLabel).padTop(5);
+        playerBox.add(playerHpBar).width(220).height(22).padTop(10).row();
+        playerBox.add(playerStatusLabel).padTop(8);
 
         Table monsterBox = new Table();
-        monsterBox.add(intentLabel).row();
+        monsterBox.setBackground(Assets.createColorDrawable(0.25f, 0.1f, 0.15f, 0.85f));
+        monsterBox.pad(15);
+        monsterBox.add(intentLabel).padBottom(5).row();
         monsterBox.add(monsterLabel).row();
-        monsterBox.add(monsterHpBar).width(200).height(20).padTop(8).row();
-        monsterBox.add(monsterStatusLabel).padTop(5);
+        monsterBox.add(monsterHpBar).width(220).height(22).padTop(10).row();
+        monsterBox.add(monsterStatusLabel).padTop(8);
 
-        rootTable.add(playerBox).expandX().padTop(10);
-        rootTable.add(monsterBox).expandX().padTop(10);
+        rootTable.add(playerBox).expandX().padTop(30);
+        rootTable.add(monsterBox).expandX().padTop(30);
         rootTable.row();
 
         TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
         btnStyle.font = game.font;
         btnStyle.fontColor = Color.GOLD;
-        btnStyle.up = createDrawable(0.2f, 0.2f, 0.3f, 1f);
+        btnStyle.up = Assets.createColorDrawable(0.2f, 0.2f, 0.35f, 0.9f);
 
         endTurnButton = new TextButton("Kết thúc lượt", btnStyle);
-        endTurnButton.pad(10, 20, 10, 20);
+        endTurnButton.pad(12, 25, 12, 25);
         endTurnButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 endPlayerTurn();
             }
         });
-        rootTable.add(endTurnButton).colspan(2).padTop(15).row();
+        rootTable.add(endTurnButton).colspan(2).padTop(25).row();
 
         Table bottomTable = new Table();
         handTable = new Table();
@@ -128,7 +134,7 @@ public class GameScreen implements Screen {
         bottomTable.add(handTable).expandX();
         bottomTable.add(discardPileLabel).width(120).padRight(20);
 
-        rootTable.add(bottomTable).colspan(2).expandY().bottom().padBottom(20).fillX();
+        rootTable.add(bottomTable).colspan(2).expandY().bottom().padBottom(15).fillX();
 
         stage.addActor(rootTable);
 
@@ -145,7 +151,7 @@ public class GameScreen implements Screen {
 
         int floor = runState.getCurrentFloor();
 
-        if (floor == 15) {
+        if (floor >= 15) {
             monster = new BossEnemy("TRÙM CHƯƠNG 1: Slime Khổng Lồ", 100);
         } else if (floor > 10) {
             monster = new DarkKnightEnemy("Hiệp Sĩ Bóng Đêm", 60 + (floor * 3));
@@ -193,6 +199,14 @@ public class GameScreen implements Screen {
     private boolean checkGameOver() {
         if (monster.getHp() <= 0) {
             player.triggerVictoryRelics();
+            SoundManager.getInstance().playSound("sfx_victory.wav");
+
+            // Nếu hạ gục Trùm Tầng 15 -> Chuyển trực tiếp sang màn VictoryScreen
+            if (RunState.getInstance().getCurrentFloor() >= 15) {
+                game.setScreen(new VictoryScreen(game));
+                return true;
+            }
+
             showRewardScreen();
             return true;
         } else if (player.getHp() <= 0) {
@@ -255,6 +269,19 @@ public class GameScreen implements Screen {
         handTable.clear();
         for (Card card : deckManager.getHand()) {
             CardActor cardActor = new CardActor(card, game.font, () -> {
+                switch (card.getType()) {
+                    case ATTACK:
+                        SoundManager.getInstance().playSound("sfx_attack.wav");
+                        break;
+                    case DEFENSE:
+                        SoundManager.getInstance().playSound("sfx_defend.wav");
+                        break;
+                    case SKILL:
+                    case POWER:
+                        SoundManager.getInstance().playSound("sfx_skill.wav");
+                        break;
+                }
+
                 if (deckManager.playCard(card, player, monster)) {
                     updateUI();
                     refreshHandUI();
@@ -284,7 +311,6 @@ public class GameScreen implements Screen {
         playerHpBar.setValue(player.getHp());
         monsterHpBar.setValue(monster.getHp());
 
-        // Hiển thị Buff / Debuff của Player
         StringBuilder pStatus = new StringBuilder();
         for (Map.Entry<StatusEffect.Type, Integer> entry : player.getStatuses().entrySet()) {
             if (entry.getValue() > 0) {
@@ -293,7 +319,6 @@ public class GameScreen implements Screen {
         }
         playerStatusLabel.setText(pStatus.toString());
 
-        // Hiển thị Buff / Debuff của Monster
         StringBuilder mStatus = new StringBuilder();
         for (Map.Entry<StatusEffect.Type, Integer> entry : monster.getStatuses().entrySet()) {
             if (entry.getValue() > 0) {
@@ -313,7 +338,7 @@ public class GameScreen implements Screen {
     private void initRewardOverlay() {
         rewardOverlay = new Table();
         rewardOverlay.setFillParent(true);
-        rewardOverlay.setBackground(createDrawable(0f, 0f, 0f, 0.88f));
+        rewardOverlay.setBackground(Assets.createColorDrawable(0f, 0f, 0f, 0.88f));
 
         Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.GOLD);
         Label.LabelStyle goldStyle = new Label.LabelStyle(game.font, Color.YELLOW);
@@ -327,7 +352,7 @@ public class GameScreen implements Screen {
         TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
         btnStyle.font = game.font;
         btnStyle.fontColor = Color.LIGHT_GRAY;
-        btnStyle.up = createDrawable(0.3f, 0.3f, 0.3f, 1f);
+        btnStyle.up = Assets.createColorDrawable(0.3f, 0.3f, 0.3f, 1f);
 
         TextButton skipBtn = new TextButton("Bỏ qua phần thưởng", btnStyle);
         skipBtn.pad(10, 20, 10, 20);
@@ -351,7 +376,7 @@ public class GameScreen implements Screen {
     private void initGameOverOverlay() {
         gameOverOverlay = new Table();
         gameOverOverlay.setFillParent(true);
-        gameOverOverlay.setBackground(createDrawable(0f, 0f, 0f, 0.85f));
+        gameOverOverlay.setBackground(Assets.createColorDrawable(0f, 0f, 0f, 0.85f));
 
         Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.WHITE);
         gameOverTitleLabel = new Label("", titleStyle);
@@ -359,7 +384,7 @@ public class GameScreen implements Screen {
         TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
         btnStyle.font = game.font;
         btnStyle.fontColor = Color.WHITE;
-        btnStyle.up = createDrawable(0.2f, 0.6f, 0.2f, 1f);
+        btnStyle.up = Assets.createColorDrawable(0.2f, 0.6f, 0.2f, 1f);
 
         TextButton backToMenuBtn = new TextButton("Quay về Menu Chính", btnStyle);
         backToMenuBtn.pad(10, 30, 10, 30);
@@ -379,23 +404,20 @@ public class GameScreen implements Screen {
 
     private ProgressBar.ProgressBarStyle createHpBarStyle(Color fillColor) {
         ProgressBar.ProgressBarStyle style = new ProgressBar.ProgressBarStyle();
-        style.background = createDrawable(0.2f, 0.2f, 0.2f, 1f);
-        style.knobBefore = createDrawable(fillColor.r, fillColor.g, fillColor.b, 1f);
+        style.background = Assets.createColorDrawable(0.15f, 0.15f, 0.15f, 1f);
+        style.knobBefore = Assets.createColorDrawable(fillColor.r, fillColor.g, fillColor.b, 1f);
         return style;
-    }
-
-    private TextureRegionDrawable createDrawable(float r, float g, float b, float a) {
-        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-        pixmap.setColor(r, g, b, a);
-        pixmap.fill();
-        Texture texture = new Texture(pixmap);
-        pixmap.dispose();
-        return new TextureRegionDrawable(new TextureRegion(texture));
     }
 
     @Override
     public void render(float delta) {
-        ScreenUtils.clear(0.12f, 0.12f, 0.18f, 1f);
+        ScreenUtils.clear(0.08f, 0.08f, 0.12f, 1f);
+
+        game.batch.begin();
+        if (combatBgTexture != null) {
+            game.batch.draw(combatBgTexture, 0, 0, 1280, 720);
+        }
+        game.batch.end();
 
         stage.act(delta);
         stage.draw();

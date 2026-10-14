@@ -29,6 +29,7 @@ public class MapScreen implements Screen {
 
     private List<List<MapNode>> mapData;
     private final Map<MapNode, TextButton> nodeButtonMap = new HashMap<>();
+    private Label syncStatusLabel;
 
     public MapScreen(Main game) {
         this.game = game;
@@ -48,8 +49,48 @@ public class MapScreen implements Screen {
         root.setFillParent(true);
 
         Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.GOLD);
+        Label.LabelStyle userStyle = new Label.LabelStyle(game.font, Color.CYAN);
+        Label.LabelStyle statusStyle = new Label.LabelStyle(game.font, Color.LIME);
+
+        // Thanh công cụ tài khoản & Lưu tiến trình
+        Table topBar = new Table();
+        topBar.setBackground(createDrawable(0f, 0f, 0f, 0.6f));
+
+        Label userLabel = new Label("Tài khoản: " + PlayerData.email, userStyle);
+        syncStatusLabel = new Label("", statusStyle);
+
+        TextButton.TextButtonStyle saveBtnStyle = new TextButton.TextButtonStyle();
+        saveBtnStyle.font = game.font;
+        saveBtnStyle.fontColor = Color.YELLOW;
+        saveBtnStyle.up = createDrawable(0.2f, 0.3f, 0.5f, 0.9f);
+
+        TextButton saveBtn = new TextButton("Lưu Tiến Trình", saveBtnStyle);
+        saveBtn.pad(8, 15, 8, 15);
+        saveBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                GameSyncService.saveProfile(RunState.getInstance(), new GameSyncService.SyncCallback() {
+                    @Override
+                    public void onSuccess(String message) {
+                        syncStatusLabel.setText(message);
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        syncStatusLabel.setText(errorMessage);
+                    }
+                });
+            }
+        });
+
+        topBar.add(userLabel).left().padLeft(15);
+        topBar.add(saveBtn).padLeft(20);
+        topBar.add(syncStatusLabel).expandX().left().padLeft(15);
+
+        root.add(topBar).fillX().row();
+
         Label titleLabel = new Label("BẢN ĐỒ THÁP WEBSPIRE - TẦNG " + RunState.getInstance().getCurrentFloor(), titleStyle);
-        root.add(titleLabel).padTop(10).padBottom(20).row();
+        root.add(titleLabel).padTop(10).padBottom(15).row();
 
         Table mapTable = new Table();
         mapTable.bottom();

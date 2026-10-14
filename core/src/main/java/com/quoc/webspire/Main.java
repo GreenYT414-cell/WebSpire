@@ -21,7 +21,6 @@ public class Main extends Game {
     public void create() {
         batch = new SpriteBatch();
 
-        // Nạp toàn bộ tài nguyên hình ảnh / âm thanh bằng AssetManager
         Assets.load();
 
         if (Gdx.files.internal("Roboto-Regular.ttf").exists()) {
@@ -61,5 +60,6 @@ public class Main extends Game {
         batch.dispose();
         font.dispose();
         Assets.dispose();
+        SoundManager.getInstance().dispose();
     }
 }

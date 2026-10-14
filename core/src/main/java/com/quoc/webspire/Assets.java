@@ -11,14 +11,14 @@ public class Assets {
     public static final AssetManager manager = new AssetManager();
 
     public static void load() {
-        if (Gdx.files.internal("card_frame.png").exists()) {
-            manager.load("card_frame.png", Texture.class);
-        }
         if (Gdx.files.internal("bg_combat.png").exists()) {
             manager.load("bg_combat.png", Texture.class);
         }
         if (Gdx.files.internal("menu_bg.png").exists()) {
             manager.load("menu_bg.png", Texture.class);
+        }
+        if (Gdx.files.internal("card_frame.png").exists()) {
+            manager.load("card_frame.png", Texture.class);
         }
 
         manager.finishLoading();
