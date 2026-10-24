@@ -1,0 +1,226 @@
+package com.quoc.webspire.screens;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Interpolation;
+import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.InputListener;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.viewport.FitViewport;
+import com.quoc.webspire.Main;
+import com.quoc.webspire.managers.Assets;
+import com.quoc.webspire.managers.RunState;
+import com.quoc.webspire.managers.SoundManager;
+import com.quoc.webspire.network.GameProfileDto;
+import com.quoc.webspire.network.GameSyncService;
+import com.quoc.webspire.network.PlayerData;
+import com.quoc.webspire.ui.ParticleManager;
+
+public class MainMenuScreen implements Screen {
+    private final Main game;
+    private Stage stage;
+    private Texture bgTexture;
+    private Label statusLabel;
+    private ParticleManager particleManager;
+    private float stateTime = 0f;
+    private Table titleTable;
+
+    public MainMenuScreen(final Main game) {
+        this.game = game;
+        this.stage = new Stage(new FitViewport(1280, 720), game.batch);
+        this.particleManager = new ParticleManager();
+
+        if (Gdx.files.internal("menu_bg.png").exists()) {
+            bgTexture = new Texture(Gdx.files.internal("menu_bg.png"));
+        }
+    }
+
+    @Override
+    public void show() {
+        Gdx.input.setInputProcessor(stage);
+        SoundManager.getInstance().playBgm("bgm_menu.mp3");
+
+        Table mainTable = new Table();
+        mainTable.setFillParent(true);
+        mainTable.center();
+
+        // 1. Tiêu đề Game với hiệu ứng lơ lửng hoàng kim
+        titleTable = new Table();
+        titleTable.setTransform(true);
+        titleTable.setOrigin(Align.center);
+
+        Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.GOLD);
+        Label titleLabel = new Label("WEBSPIRE: THE TOWER", titleStyle);
+        titleLabel.setFontScale(1.8f);
+
+        Label.LabelStyle subtitleStyle = new Label.LabelStyle(game.font, new Color(0.85f, 0.75f, 0.45f, 0.85f));
+        Label subtitleLabel = new Label("✦  A  R O G U E L I K E   D E C K B U I L D I N G   A S C E N T  ✦", subtitleStyle);
+
+        titleTable.add(titleLabel).padBottom(6).row();
+        titleTable.add(subtitleLabel).padBottom(15);
+
+        // Hiệu ứng bồng bềnh hoàng kim cho tiêu đề
+        titleTable.addAction(Actions.forever(Actions.sequence(
+            Actions.moveBy(0, 6f, 1.3f, Interpolation.sine),
+            Actions.moveBy(0, -6f, 1.3f, Interpolation.sine)
+        )));
+
+        // 2. Huy hiệu Trạng thái Tài khoản người chơi
+        Table accountBadge = new Table();
+        accountBadge.setBackground(Assets.createBorderedDrawable(380, 32, new Color(0.06f, 0.05f, 0.12f, 0.85f), new Color(0.25f, 0.45f, 0.75f, 0.8f), 1));
+        accountBadge.pad(5, 15, 5, 15);
+
+        Label.LabelStyle statusStyle = new Label.LabelStyle(game.font, Color.CYAN);
+        statusLabel = new Label("⚔ Hiệp sĩ: " + (PlayerData.email != null ? PlayerData.email : "Khách Khởi Hành"), statusStyle);
+        accountBadge.add(statusLabel);
+
+        // 3. Thiết kế Nút bấm kiểu Gothic Glassmorphism viền Vàng Kim
+        TextButton startBtn = createStyledButton("⚔  Bắt Đầu Chuyến Đi Mới");
+        startBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                RunState.getInstance().startNewRun();
+                game.setScreen(new MapScreen(game));
+            }
+        });
+
+        TextButton continueBtn = createStyledButton("📜  Tiếp Tục Chuyến Đi");
+        continueBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                GameSyncService.loadProfile(PlayerData.userId, new GameSyncService.LoadProfileCallback() {
+                    @Override
+                    public void onSuccess(GameProfileDto profile) {
+                        game.setScreen(new MapScreen(game));
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        statusLabel.setText("Lỗi: " + errorMessage);
+                    }
+                });
+            }
+        });
+
+        TextButton loginBtn = createStyledButton("👤  Tài Khoản GameHub");
+        loginBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                game.setScreen(new LoginScreen(game));
+            }
+        });
+
+        TextButton exitBtn = createStyledButton("🚪  Thoát Game");
+        exitBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                Gdx.app.exit();
+            }
+        });
+
+        mainTable.add(titleTable).padBottom(15).row();
+        mainTable.add(accountBadge).padBottom(25).row();
+        mainTable.add(startBtn).width(370).height(56).padBottom(14).row();
+        mainTable.add(continueBtn).width(370).height(56).padBottom(14).row();
+        mainTable.add(loginBtn).width(370).height(56).padBottom(14).row();
+        mainTable.add(exitBtn).width(370).height(56);
+
+        stage.addActor(mainTable);
+    }
+
+    private TextButton createStyledButton(String text) {
+        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
+        btnStyle.font = game.font;
+        btnStyle.fontColor = new Color(0.95f, 0.90f, 0.80f, 1f);
+        btnStyle.overFontColor = Color.YELLOW;
+        btnStyle.downFontColor = Color.GOLD;
+
+        btnStyle.up = Assets.createBorderedDrawable(370, 56, 
+            new Color(0.12f, 0.08f, 0.18f, 0.88f), 
+            new Color(0.75f, 0.58f, 0.22f, 0.90f), 2);
+        btnStyle.over = Assets.createBorderedDrawable(370, 56, 
+            new Color(0.24f, 0.15f, 0.35f, 0.95f), 
+            new Color(1.0f, 0.85f, 0.35f, 1f), 2);
+        btnStyle.down = Assets.createBorderedDrawable(370, 56, 
+            new Color(0.32f, 0.18f, 0.42f, 0.98f), 
+            new Color(1.0f, 0.95f, 0.55f, 1f), 2);
+
+        TextButton button = new TextButton(text, btnStyle);
+        button.setTransform(true);
+        button.setOrigin(Align.center);
+
+        // Hiệu ứng phóng to nhẹ nhàng khi rê chuột (Hover Micro-animation)
+        button.addListener(new InputListener() {
+            @Override
+            public void enter(InputEvent event, float x, float y, int pointer, Actor fromActor) {
+                if (pointer == -1) {
+                    button.clearActions();
+                    button.addAction(Actions.scaleTo(1.04f, 1.04f, 0.12f, Interpolation.pow2Out));
+                }
+            }
+
+            @Override
+            public void exit(InputEvent event, float x, float y, int pointer, Actor toActor) {
+                if (pointer == -1) {
+                    button.clearActions();
+                    button.addAction(Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.pow2In));
+                }
+            }
+        });
+
+        return button;
+    }
+
+    @Override
+    public void render(float delta) {
+        ScreenUtils.clear(0.06f, 0.04f, 0.10f, 1f);
+
+        stateTime += delta;
+        particleManager.update(delta);
+        particleManager.updateAmbient(delta, 1280, 720, new Color(0.95f, 0.55f, 0.15f, 1f), 12);
+
+        game.batch.begin();
+        if (bgTexture != null) {
+            // Vẽ nền Tòa tháp huyền bí với độ che phủ toàn màn hình
+            game.batch.setColor(Color.WHITE);
+            game.batch.draw(bgTexture, 0, 0, 1280, 720);
+
+            // Phủ lớp màn đêm mờ để các nút và tiêu đề hiển thị nổi bật, dễ đọc
+            game.batch.setColor(0.04f, 0.03f, 0.08f, 0.45f);
+            Assets.createColorDrawable(1f, 1f, 1f, 1f).draw(game.batch, 0, 0, 1280, 720);
+            game.batch.setColor(Color.WHITE);
+        }
+
+        // Vẽ các hạt tàn lửa ma thuật bốc lên từ chân tháp
+        particleManager.draw(game.batch);
+        game.batch.end();
+
+        stage.act(delta);
+        stage.draw();
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        stage.getViewport().update(width, height, true);
+    }
+
+    @Override public void pause() {}
+    @Override public void resume() {}
+    @Override public void hide() {}
+
+    @Override
+    public void dispose() {
+        stage.dispose();
+        if (bgTexture != null) bgTexture.dispose();
+    }
+}
