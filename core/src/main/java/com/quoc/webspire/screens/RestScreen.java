@@ -38,7 +38,7 @@ public class RestScreen implements Screen {
     }
 
     private void proceedToNextFloor() {
-        int nextFloor = RunState.getInstance().getCurrentFloor() + 1;
+        int nextFloor = Math.min(15, RunState.getInstance().getCurrentFloor() + 1);
         RunState.getInstance().setCurrentFloor(nextFloor);
         game.setScreen(mapScreen);
     }

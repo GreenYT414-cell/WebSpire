@@ -8,7 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.quoc.webspire.managers.Assets;
 import com.quoc.webspire.managers.SoundManager;
-import com.quoc.webspire.screens.MainMenuScreen;
+import com.quoc.webspire.screens.LoginScreen;
 
 public class Main extends Game {
     public SpriteBatch batch;
@@ -50,7 +50,7 @@ public class Main extends Game {
             font = new BitmapFont();
         }
 
-        setScreen(new MainMenuScreen(this));
+        setScreen(new LoginScreen(this));
     }
 
     @Override

@@ -5,6 +5,8 @@ import com.quoc.webspire.cards.Card;
 import com.quoc.webspire.cards.DefendCard;
 import com.quoc.webspire.cards.StrikeCard;
 import com.quoc.webspire.entities.Character;
+import com.quoc.webspire.map.MapGenerator;
+import com.quoc.webspire.map.MapNode;
 import com.quoc.webspire.relics.BurningBloodRelic;
 
 import java.util.ArrayList;
@@ -16,6 +18,10 @@ public class RunState {
     private com.quoc.webspire.entities.Character player;
     private List<Card> masterDeck;
     private int currentFloor;
+
+    // Quản lý cấu trúc bản đồ & vị trí hiện tại
+    private List<MapNode> mapNodes;
+    private MapNode currentNode;
 
     // Thống kê chi tiết cho toàn bộ lượt chơi (Run Statistics)
     private int enemiesKilled = 0;
@@ -49,21 +55,64 @@ public class RunState {
         for (int i = 0; i < 4; i++) masterDeck.add(new DefendCard());
         masterDeck.add(new BashCard());
 
+        // Khởi tạo bản đồ leo tháp có nhánh
+        this.mapNodes = MapGenerator.generateMap(15);
+        this.currentNode = null;
+        updateNodeAccessibility();
+
         // Reset toàn bộ thống kê cho ván mới
         this.enemiesKilled = 0;
         this.elitesKilled = 0;
         this.bossesKilled = 0;
         this.totalDamageDealt = 0;
         this.totalDamageTaken = 0;
-        this.totalGoldEarned = player.getGold();
+        this.totalGoldEarned = 0;
         this.cardsPlayed = 0;
         this.turnsCount = 0;
+    }
+
+    /**
+     * Cập nhật các node có thể tiếp cận theo đường nối từ currentNode
+     */
+    public void updateNodeAccessibility() {
+        if (mapNodes == null) return;
+        for (MapNode n : mapNodes) {
+            if (n.getFloor() == currentFloor) {
+                if (currentNode == null || currentFloor == 1) {
+                    n.setAccessible(true);
+                } else {
+                    n.setAccessible(currentNode.getNextNodes().contains(n));
+                }
+            } else if (n.getFloor() < currentFloor) {
+                n.setAccessible(false);
+            }
+        }
     }
 
     public Character getPlayer() { return player; }
     public List<Card> getMasterDeck() { return masterDeck; }
     public int getCurrentFloor() { return currentFloor; }
-    public void setCurrentFloor(int floor) { this.currentFloor = floor; }
+    public void setCurrentFloor(int floor) { 
+        this.currentFloor = floor;
+        updateNodeAccessibility();
+    }
+
+    public List<MapNode> getMapNodes() {
+        if (mapNodes == null) {
+            mapNodes = MapGenerator.generateMap(15);
+            updateNodeAccessibility();
+        }
+        return mapNodes;
+    }
+    public void setMapNodes(List<MapNode> mapNodes) { this.mapNodes = mapNodes; }
+
+    public MapNode getCurrentNode() { return currentNode; }
+    public void setCurrentNode(MapNode currentNode) {
+        this.currentNode = currentNode;
+        if (currentNode != null) {
+            currentNode.setVisited(true);
+        }
+    }
 
     public int getEnemiesKilled() { return enemiesKilled; }
     public void incrementEnemiesKilled() { this.enemiesKilled++; }

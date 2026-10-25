@@ -181,6 +181,7 @@ public class Character {
     public int getMaxEnergy() { return maxEnergy; }
     public void setMaxEnergy(int maxEnergy) { this.maxEnergy = maxEnergy; }
     public int getGold() { return gold; }
+    public void setGold(int gold) { this.gold = Math.max(0, gold); }
     public Map<StatusEffect.Type, Integer> getStatuses() { return statuses; }
     public List<Relic> getRelics() { return relics; }
 }

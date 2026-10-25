@@ -6,6 +6,7 @@ public class StatusEffect {
         WEAK("Yếu Mềm"),
         VULNERABLE("Dễ Tổn Thương"),
         STRENGTH("Sức Mạnh"),
+        DEXTERITY("Khéo Léo"),
         METALLICIZE("Kim Loại Hóa"),
         DEMON_FORM("Hình Thái Ác Quỷ");
 

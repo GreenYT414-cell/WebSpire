@@ -28,7 +28,7 @@ public class MapGenerator {
                 map.add(new MapNode(7, 0, MapNode.Type.REST));
                 map.add(new MapNode(7, 1, MapNode.Type.SHOP));
             } else {
-                int optionsCount = 2 + random.nextInt(2);
+                int optionsCount = 2 + random.nextInt(2); // 2 hoặc 3 ngã rẽ
                 for (int lane = 0; lane < optionsCount; lane++) {
                     MapNode.Type type = getRandomNodeType(floor);
                     map.add(new MapNode(floor, lane, type));
@@ -36,7 +36,75 @@ public class MapGenerator {
             }
         }
 
+        connectFloors(map, totalFloors);
+
         return map;
+    }
+
+    private static void connectFloors(List<MapNode> map, int totalFloors) {
+        // Thiết lập đường nối có hướng giữa tầng F và tầng F + 1
+        for (int floor = 1; floor < totalFloors; floor++) {
+            List<MapNode> currentNodes = new ArrayList<>();
+            List<MapNode> nextNodes = new ArrayList<>();
+            for (MapNode n : map) {
+                if (n.getFloor() == floor) currentNodes.add(n);
+                else if (n.getFloor() == floor + 1) nextNodes.add(n);
+            }
+
+            if (nextNodes.size() == 1) {
+                // Boss tầng 8 hoặc Boss cuối tầng 15: Tất cả các nhánh đều dẫn về Boss
+                for (MapNode cur : currentNodes) {
+                    cur.addNextNode(nextNodes.get(0));
+                }
+            } else if (currentNodes.size() == 1) {
+                // Từ 1 node tỏa ra nhiều nhánh tiếp theo
+                for (MapNode next : nextNodes) {
+                    currentNodes.get(0).addNextNode(next);
+                }
+            } else {
+                // Phân nhánh logic theo lane gần nhau (khoảng cách lane <= 1)
+                for (MapNode cur : currentNodes) {
+                    int cLane = cur.getLane();
+                    for (MapNode next : nextNodes) {
+                        int nLane = next.getLane();
+                        if (Math.abs(cLane - nLane) <= 1) {
+                            cur.addNextNode(next);
+                        }
+                    }
+                    if (cur.getNextNodes().isEmpty() && !nextNodes.isEmpty()) {
+                        cur.addNextNode(nextNodes.get(0));
+                    }
+                }
+
+                // Đảm bảo không có node nào ở tầng tiếp theo bị cô lập (không có lối vào)
+                for (MapNode next : nextNodes) {
+                    boolean hasParent = false;
+                    for (MapNode cur : currentNodes) {
+                        if (cur.getNextNodes().contains(next)) {
+                            hasParent = true;
+                            break;
+                        }
+                    }
+                    if (!hasParent && !currentNodes.isEmpty()) {
+                        MapNode closest = currentNodes.get(0);
+                        int minDiff = Math.abs(closest.getLane() - next.getLane());
+                        for (MapNode cur : currentNodes) {
+                            int diff = Math.abs(cur.getLane() - next.getLane());
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                                closest = cur;
+                            }
+                        }
+                        closest.addNextNode(next);
+                    }
+                }
+            }
+        }
+
+        // Tầng 1 ban đầu luôn có thể tiếp cận
+        for (MapNode node : map) {
+            node.setAccessible(node.getFloor() == 1);
+        }
     }
 
     private static MapNode.Type getRandomNodeType(int floor) {

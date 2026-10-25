@@ -21,10 +21,12 @@ import com.quoc.webspire.Main;
 import com.quoc.webspire.managers.Assets;
 import com.quoc.webspire.managers.RunState;
 import com.quoc.webspire.managers.SoundManager;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.quoc.webspire.network.GameProfileDto;
 import com.quoc.webspire.network.GameSyncService;
 import com.quoc.webspire.network.PlayerData;
 import com.quoc.webspire.ui.ParticleManager;
+import java.util.List;
 
 public class MainMenuScreen implements Screen {
     private final Main game;
@@ -120,6 +122,14 @@ public class MainMenuScreen implements Screen {
             }
         });
 
+        TextButton leaderboardBtn = createStyledButton("🏆  Bảng Xếp Hạng Cloud");
+        leaderboardBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showLeaderboardDialog();
+            }
+        });
+
         TextButton exitBtn = createStyledButton("🚪  Thoát Game");
         exitBtn.addListener(new ClickListener() {
             @Override
@@ -130,12 +140,82 @@ public class MainMenuScreen implements Screen {
 
         mainTable.add(titleTable).padBottom(15).row();
         mainTable.add(accountBadge).padBottom(25).row();
-        mainTable.add(startBtn).width(370).height(56).padBottom(14).row();
-        mainTable.add(continueBtn).width(370).height(56).padBottom(14).row();
-        mainTable.add(loginBtn).width(370).height(56).padBottom(14).row();
-        mainTable.add(exitBtn).width(370).height(56);
+        mainTable.add(startBtn).width(370).height(52).padBottom(12).row();
+        mainTable.add(continueBtn).width(370).height(52).padBottom(12).row();
+        mainTable.add(loginBtn).width(370).height(52).padBottom(12).row();
+        mainTable.add(leaderboardBtn).width(370).height(52).padBottom(12).row();
+        mainTable.add(exitBtn).width(370).height(52);
 
         stage.addActor(mainTable);
+    }
+
+    private void showLeaderboardDialog() {
+        Table overlay = new Table();
+        overlay.setFillParent(true);
+        overlay.setBackground(Assets.createColorDrawable(0.02f, 0.02f, 0.05f, 0.92f));
+
+        Table window = new Table();
+        window.setBackground(Assets.createBorderedDrawable(660, 490, 
+            new Color(0.06f, 0.06f, 0.12f, 0.98f), 
+            new Color(0.75f, 0.60f, 0.25f, 0.95f), 2));
+        window.pad(20);
+
+        Label.LabelStyle titleStyle = new Label.LabelStyle(game.font, Color.GOLD);
+        Label titleLabel = new Label("🏆  BẢNG XẾP HẠNG CAO THỦ WEBSPIRE  🏆", titleStyle);
+        titleLabel.setFontScale(1.1f);
+
+        Table contentTable = new Table();
+        contentTable.pad(10);
+        Label.LabelStyle loadingStyle = new Label.LabelStyle(game.font, Color.CYAN);
+        Label loadingLabel = new Label("Đang kết nối Cloud Server...", loadingStyle);
+        contentTable.add(loadingLabel).pad(20);
+
+        GameSyncService.fetchLeaderboard(new GameSyncService.LeaderboardCallback() {
+            @Override
+            public void onSuccess(List<String> records) {
+                contentTable.clearChildren();
+                Label.LabelStyle rowStyle = new Label.LabelStyle(game.font, Color.WHITE);
+                Label.LabelStyle topStyle = new Label.LabelStyle(game.font, Color.GOLD);
+
+                for (int i = 0; i < records.size(); i++) {
+                    String rec = records.get(i);
+                    Label l = new Label(rec, i == 0 ? topStyle : rowStyle);
+                    contentTable.add(l).left().padBottom(8).row();
+                }
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                contentTable.clearChildren();
+                Label.LabelStyle errStyle = new Label.LabelStyle(game.font, Color.RED);
+                contentTable.add(new Label("Lỗi: " + errorMessage, errStyle)).pad(20);
+            }
+        });
+
+        ScrollPane scroll = new ScrollPane(contentTable);
+        scroll.setFadeScrollBars(false);
+
+        TextButton.TextButtonStyle closeStyle = new TextButton.TextButtonStyle();
+        closeStyle.font = game.font;
+        closeStyle.fontColor = Color.WHITE;
+        closeStyle.overFontColor = Color.YELLOW;
+        closeStyle.up = Assets.createBorderedDrawable(150, 40, new Color(0.35f, 0.12f, 0.12f, 0.95f), new Color(0.85f, 0.35f, 0.35f, 1f), 1);
+
+        TextButton closeBtn = new TextButton("✖ Đóng", closeStyle);
+        closeBtn.pad(8, 20, 8, 20);
+        closeBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                overlay.remove();
+            }
+        });
+
+        window.add(titleLabel).padBottom(15).row();
+        window.add(scroll).width(620).height(330).padBottom(15).row();
+        window.add(closeBtn).center();
+
+        overlay.add(window).center();
+        stage.addActor(overlay);
     }
 
     private TextButton createStyledButton(String text) {

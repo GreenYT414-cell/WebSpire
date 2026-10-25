@@ -22,6 +22,7 @@ import com.quoc.webspire.entities.*;
 import com.quoc.webspire.entities.Character;
 import com.quoc.webspire.managers.*;
 import com.quoc.webspire.map.MapNode;
+import com.quoc.webspire.network.GameSyncService;
 import com.quoc.webspire.potions.*;
 import com.quoc.webspire.relics.*;
 import com.quoc.webspire.ui.*;
@@ -47,7 +48,7 @@ public class GameScreen implements Screen {
     private Label playerStatusLabel, monsterStatusLabel;
     private Label playerBlockBadgeLabel, monsterBlockBadgeLabel;
     private ProgressBar playerHpBar, monsterHpBar;
-    private Label drawPileLabel, discardPileLabel;
+    private Label drawPileLabel, discardPileLabel, exhaustPileLabel;
 
     private RelicBar relicBar;
     private Table potionBar;
@@ -139,6 +140,7 @@ public class GameScreen implements Screen {
 
         drawPileLabel = new Label("", pileStyle);
         discardPileLabel = new Label("", pileStyle);
+        exhaustPileLabel = new Label("", pileStyle);
 
         drawPileLabel.addListener(new ClickListener() {
             @Override
@@ -151,6 +153,13 @@ public class GameScreen implements Screen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 DeckInspectorDialog.show(stage, game.font, "DANH SÁCH BÀI BỎ", deckManager.getDiscardPile());
+            }
+        });
+
+        exhaustPileLabel.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                DeckInspectorDialog.show(stage, game.font, "DANH SÁCH BÀI TIÊU BIẾN", deckManager.getExhaustPile());
             }
         });
 
@@ -232,9 +241,10 @@ public class GameScreen implements Screen {
         bottomTable.add(handTable).expandX().bottom();
         // Cột bên phải: Nút Kết Thúc Lượt & Bài Bỏ
         Table rightControlBox = new Table();
-        rightControlBox.add(endTurnButton).padBottom(8).row();
-        rightControlBox.add(discardPileLabel);
-        bottomTable.add(rightControlBox).width(150).padRight(20).bottom().padBottom(15);
+        rightControlBox.add(endTurnButton).padBottom(6).row();
+        rightControlBox.add(discardPileLabel).padBottom(4).row();
+        rightControlBox.add(exhaustPileLabel);
+        bottomTable.add(rightControlBox).width(160).padRight(20).bottom().padBottom(10);
 
         rootTable.add(bottomTable).colspan(2).expandY().bottom().padBottom(10).fillX();
 
@@ -410,6 +420,7 @@ public class GameScreen implements Screen {
             }
 
             if (RunState.getInstance().getCurrentFloor() >= 15 && battleType == MapNode.Type.BOSS) {
+                GameSyncService.submitScore(RunState.getInstance(), null);
                 game.setScreen(new VictoryScreen(game));
                 return true;
             }
@@ -417,6 +428,7 @@ public class GameScreen implements Screen {
             showRewardScreen();
             return true;
         } else if (player.getHp() <= 0) {
+            GameSyncService.submitScore(RunState.getInstance(), null);
             showGameOverScreen("GAME OVER! CẬU ĐÃ BỎ MẠNG TRONG THÁP!", Color.RED);
             return true;
         }
@@ -530,9 +542,11 @@ public class GameScreen implements Screen {
         rewardOverlay.setVisible(false);
         endTurnButton.setVisible(true);
 
-        // Tăng tầng tiến trình lên +1 sau khi hoàn thành trận đấu
-        int nextFloor = RunState.getInstance().getCurrentFloor() + 1;
-        RunState.getInstance().setCurrentFloor(nextFloor);
+        // Tăng tầng tiến trình lên +1 sau khi hoàn thành trận đấu (chỉ khi chưa đến tầng cuối)
+        int currentFloor = RunState.getInstance().getCurrentFloor();
+        if (currentFloor < 15) {
+            RunState.getInstance().setCurrentFloor(currentFloor + 1);
+        }
 
         game.setScreen(mapScreen);
     }
@@ -747,20 +761,20 @@ public class GameScreen implements Screen {
         relicBar.refresh();
         refreshPotionBar();
 
-        String playerText = player.getName() + "\nHP: " + player.getHp() + "/" + player.getMaxHp()
-            + "\nGiáp: " + player.getBlock() + " | NL: " + player.getEnergy()
-            + "\nVàng: " + player.getGold();
+        String playerText = "⚔ " + player.getName() + " (Tầng " + RunState.getInstance().getCurrentFloor() + ")\n"
+            + "❤ HP: " + player.getHp() + " / " + player.getMaxHp() + "\n"
+            + "💰 " + player.getGold() + " Vàng  |  ⚡ " + player.getEnergy() + "/" + player.getMaxEnergy() + " NL";
         playerLabel.setText(playerText);
 
-        String monsterText = monster.getName() + "\nHP: " + monster.getHp() + "/" + monster.getMaxHp()
-            + "\nGiáp: " + monster.getBlock();
+        String monsterText = "👹 " + monster.getName() + "\n"
+            + "❤ HP: " + monster.getHp() + " / " + monster.getMaxHp();
         monsterLabel.setText(monsterText);
 
         playerHpBar.setValue(player.getHp());
         monsterHpBar.setValue(monster.getHp());
 
         if (player.getBlock() > 0) {
-            playerBlockBadgeLabel.setText("🛡 GIÁP: +" + player.getBlock());
+            playerBlockBadgeLabel.setText("🛡 GIÁP BẢO VỆ: +" + player.getBlock());
             playerBlockBadgeLabel.setVisible(true);
         } else {
             playerBlockBadgeLabel.setVisible(false);
@@ -776,24 +790,38 @@ public class GameScreen implements Screen {
         StringBuilder pStatus = new StringBuilder();
         for (Map.Entry<StatusEffect.Type, Integer> entry : player.getStatuses().entrySet()) {
             if (entry.getValue() > 0) {
-                pStatus.append("[").append(entry.getKey().getName()).append(": ").append(entry.getValue()).append("] ");
+                pStatus.append(formatStatusBadge(entry.getKey(), entry.getValue())).append(" ");
             }
         }
-        playerStatusLabel.setText(pStatus.toString());
+        playerStatusLabel.setText(pStatus.toString().trim());
 
         StringBuilder mStatus = new StringBuilder();
         for (Map.Entry<StatusEffect.Type, Integer> entry : monster.getStatuses().entrySet()) {
             if (entry.getValue() > 0) {
-                mStatus.append("[").append(entry.getKey().getName()).append(": ").append(entry.getValue()).append("] ");
+                mStatus.append(formatStatusBadge(entry.getKey(), entry.getValue())).append(" ");
             }
         }
-        monsterStatusLabel.setText(mStatus.toString());
+        monsterStatusLabel.setText(mStatus.toString().trim());
 
-        drawPileLabel.setText("Bài rút (Xem):\n" + deckManager.getDrawPile().size() + " lá");
-        discardPileLabel.setText("Bài bỏ (Xem):\n" + deckManager.getDiscardPile().size() + " lá");
+        drawPileLabel.setText("📖 Bài rút (Xem):\n" + deckManager.getDrawPile().size() + " lá");
+        discardPileLabel.setText("🗑 Bài bỏ (Xem):\n" + deckManager.getDiscardPile().size() + " lá");
+        exhaustPileLabel.setText("☠ Tiêu biến (Xem):\n" + deckManager.getExhaustPile().size() + " lá");
 
         if (monster.getCurrentIntent() != null) {
             intentLabel.setText("Ý định: " + monster.getCurrentIntent() + " (" + monster.getIntentValue() + ")");
+        }
+    }
+
+    private String formatStatusBadge(StatusEffect.Type type, int val) {
+        switch (type) {
+            case STRENGTH:   return "⚔ Sức Mạnh: +" + val;
+            case DEXTERITY:  return "🍃 Khéo Léo: +" + val;
+            case VULNERABLE: return "💥 Dễ Tổn Thương: " + val;
+            case WEAK:       return "🕸 Yếu Mềm: " + val;
+            case POISON:     return "☠ Độc: " + val;
+            case METALLICIZE: return "🛡 Kim Hóa: +" + val;
+            case DEMON_FORM: return "😈 Hình Thái Ác Quỷ: +" + val;
+            default: return "[" + type.getName() + ": " + val + "]";
         }
     }
 
@@ -890,7 +918,7 @@ public class GameScreen implements Screen {
 
     private ProgressBar.ProgressBarStyle createHpBarStyle(Color fillColor) {
         ProgressBar.ProgressBarStyle style = new ProgressBar.ProgressBarStyle();
-        style.background = Assets.createColorDrawable(0.15f, 0.15f, 0.15f, 1f);
+        style.background = Assets.createBorderedDrawable(220, 20, new Color(0.06f, 0.06f, 0.10f, 0.95f), new Color(0.35f, 0.40f, 0.55f, 0.85f), 1);
         style.knobBefore = Assets.createColorDrawable(fillColor.r, fillColor.g, fillColor.b, 1f);
         return style;
     }

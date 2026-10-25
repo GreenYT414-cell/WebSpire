@@ -1,0 +1,17 @@
+{
+  "name": "webspire-backend",
+  "version": "1.0.0",
+  "description": "Backend API Server for WebSpire Roguelike Game (Authentication, Cloud Save, Leaderboards, GameHub Coupons)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["webspire", "libgdx", "roguelike", "gamehub", "backend"],
+  "author": "WebSpire Team",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
