@@ -3,7 +3,7 @@ const cors = require('cors');
 const { initDB, readData, writeData, hashPassword, generateToken, verifyToken } = require('./db');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -241,12 +241,193 @@ app.get('/api/game/coupons/:floor', (req, res) => {
     }
 });
 
+// 9. Danh mục sản phẩm GameHub (Categories)
+app.get('/api/categories', (req, res) => {
+    const data = readData();
+    res.json({
+        success: true,
+        categories: data.categories || []
+    });
+});
+
+// 10. Danh sách sản phẩm GameHub (Products)
+app.get('/api/products', (req, res) => {
+    const { category, search } = req.query;
+    const data = readData();
+    let products = data.products || [];
+
+    if (category && category !== 'all') {
+        products = products.filter(p => p.category === category);
+    }
+
+    if (search) {
+        const query = search.toLowerCase();
+        products = products.filter(p => 
+            p.name.toLowerCase().includes(query) || 
+            (p.description && p.description.toLowerCase().includes(query))
+        );
+    }
+
+    res.json({
+        success: true,
+        total: products.length,
+        products
+    });
+});
+
+// 11. Chi tiết sản phẩm (Product detail)
+app.get('/api/products/:id', (req, res) => {
+    const { id } = req.params;
+    const data = readData();
+    const product = (data.products || []).find(p => p.id === id);
+
+    if (!product) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm!" });
+    }
+
+    res.json({
+        success: true,
+        product
+    });
+});
+
+// 12. Danh sách tất cả Voucher có thể nhận từ WebSpire
+app.get('/api/coupons', (req, res) => {
+    const data = readData();
+    res.json({
+        success: true,
+        coupons: data.coupons || []
+    });
+});
+
+// 13. Kiểm tra mã giảm giá (Validate Coupon)
+app.get('/api/coupons/validate/:code', (req, res) => {
+    const code = (req.params.code || '').trim().toUpperCase();
+    const data = readData();
+    const coupon = (data.coupons || []).find(c => c.code.toUpperCase() === code);
+
+    if (!coupon) {
+        return res.status(404).json({
+            success: false,
+            message: "Mã giảm giá không hợp lệ hoặc đã hết hạn!"
+        });
+    }
+
+    res.json({
+        success: true,
+        message: `Mã ${coupon.code} hợp lệ (-${coupon.discountPercent}%)`,
+        coupon
+    });
+});
+
+// 14. Kiểm tra các voucher đã mở khóa của một người dùng theo tiến trình chơi
+app.get('/api/user/unlocked-coupons/:userId', (req, res) => {
+    const { userId } = req.params;
+    const data = readData();
+    const profile = data.profiles[userId];
+    const floor = profile ? profile.currentFloor : 1;
+
+    const unlocked = (data.coupons || []).filter(c => floor >= c.floor);
+    const locked = (data.coupons || []).filter(c => floor < c.floor);
+
+    res.json({
+        success: true,
+        currentFloor: floor,
+        unlockedCoupons: unlocked,
+        lockedCoupons: locked
+    });
+});
+
+// 15. Tạo đơn hàng mới (Create Order)
+app.post('/api/orders', (req, res) => {
+    const { userId, customerName, phone, address, items, couponCode, paymentMethod } = req.body;
+
+    if (!items || items.length === 0) {
+        return res.status(400).json({ success: false, message: "Giỏ hàng không có sản phẩm nào!" });
+    }
+
+    const data = readData();
+    let subtotal = 0;
+
+    // Tính tổng tiền dựa trên giá trong database để tránh gian lận
+    const orderItems = items.map(item => {
+        const prod = (data.products || []).find(p => p.id === item.productId || p.id === item.id);
+        const price = prod ? prod.price : item.price;
+        const qty = item.quantity || 1;
+        subtotal += price * qty;
+        return {
+            productId: prod ? prod.id : item.id,
+            name: prod ? prod.name : item.name,
+            price,
+            quantity: qty,
+            totalPrice: price * qty
+        };
+    });
+
+    let discountPercent = 0;
+    let appliedCoupon = null;
+
+    if (couponCode) {
+        const found = (data.coupons || []).find(c => c.code.toUpperCase() === couponCode.trim().toUpperCase());
+        if (found) {
+            discountPercent = found.discountPercent;
+            appliedCoupon = found.code;
+        }
+    }
+
+    const discountAmount = Math.round((subtotal * discountPercent) / 100);
+    const finalTotal = subtotal - discountAmount;
+
+    const newOrder = {
+        id: "ORD_" + Date.now(),
+        userId: userId || "GUEST",
+        customerName: customerName || "Khách Hàng GameHub",
+        phone: phone || "",
+        address: address || "",
+        items: orderItems,
+        subtotal,
+        discountPercent,
+        discountAmount,
+        appliedCoupon,
+        finalTotal,
+        paymentMethod: paymentMethod || "COD",
+        status: "SUCCESS",
+        createdAt: new Date().toISOString()
+    };
+
+    data.orders = data.orders || [];
+    data.orders.push(newOrder);
+    writeData(data);
+
+    console.log(`[ORDER] Đơn hàng mới: ${newOrder.id} - Tổng tiền: ${finalTotal.toLocaleString('vi-VN')} VNĐ (Giảm: ${discountPercent}%)`);
+
+    res.json({
+        success: true,
+        message: "Đặt hàng thành công!",
+        order: newOrder
+    });
+});
+
+// 16. Lấy lịch sử đơn hàng của người dùng
+app.get('/api/orders/user/:userId', (req, res) => {
+    const { userId } = req.params;
+    const data = readData();
+    const userOrders = (data.orders || []).filter(o => o.userId === userId);
+
+    res.json({
+        success: true,
+        orders: userOrders
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`===================================================`);
-    console.log(`⚔ WebSpire Cloud Server đang lắng nghe tại: http://localhost:${PORT}`);
-    console.log(`  - Health Check: http://localhost:${PORT}/api/health`);
-    console.log(`  - Auth API:     http://localhost:${PORT}/api/auth/login`);
-    console.log(`  - Cloud Save:   http://localhost:${PORT}/api/game/profile`);
-    console.log(`  - Leaderboard:  http://localhost:${PORT}/api/game/leaderboard`);
+    console.log(`⚔ WebSpire & GameHub API Server đang lắng nghe tại: http://localhost:${PORT}`);
+    console.log(`  - Health Check:    http://localhost:${PORT}/api/health`);
+    console.log(`  - Auth API:        http://localhost:${PORT}/api/auth/login`);
+    console.log(`  - Products Store:  http://localhost:${PORT}/api/products`);
+    console.log(`  - Categories:      http://localhost:${PORT}/api/categories`);
+    console.log(`  - Leaderboard:     http://localhost:${PORT}/api/game/leaderboard`);
+    console.log(`  - WebSpire Coupons:http://localhost:${PORT}/api/coupons`);
     console.log(`===================================================`);
 });
